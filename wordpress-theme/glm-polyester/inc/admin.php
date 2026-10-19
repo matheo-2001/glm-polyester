@@ -149,11 +149,10 @@ add_action( 'save_post', function ( $post_id ) {
 } );
 
 add_action( 'admin_enqueue_scripts', function ( $hook ) {
-	if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) ) {
-		return;
-	}
 	$screen = get_current_screen();
-	if ( ! $screen || ! in_array( $screen->post_type, array( 'modele', 'realisation' ), true ) ) {
+	$fiche  = in_array( $hook, array( 'post.php', 'post-new.php' ), true ) && $screen && in_array( $screen->post_type, array( 'modele', 'realisation' ), true );
+	$terme  = in_array( $hook, array( 'term.php', 'edit-tags.php' ), true ) && $screen && 'famille' === $screen->taxonomy;
+	if ( ! $fiche && ! $terme ) {
 		return;
 	}
 	wp_enqueue_media();
@@ -178,3 +177,81 @@ foreach ( array( 'modele', 'realisation' ) as $glm_type ) {
 		}
 	}, 10, 2 );
 }
+
+/* ---------- Réglages d'une famille du catalogue ---------- */
+
+function glm_famille_champs( $term ) {
+	$ordre   = $term ? (int) get_term_meta( $term->term_id, 'glm_ordre', true ) : 0;
+	$image   = $term ? absint( get_term_meta( $term->term_id, 'glm_image', true ) ) : 0;
+	$compact = $term ? (string) get_term_meta( $term->term_id, 'glm_compact', true ) : '';
+	wp_nonce_field( 'glm_famille', 'glm_famille_nonce' );
+	?>
+	<tr class="form-field">
+		<th scope="row"><label for="glm_ordre">Ordre d'affichage</label></th>
+		<td><input type="number" min="0" step="1" id="glm_ordre" name="glm_ordre" value="<?php echo $ordre ? esc_attr( $ordre ) : ''; ?>" style="width:6em">
+		<p class="description">1 pour la première famille, 2 pour la suivante… Vide : à la fin.</p></td>
+	</tr>
+	<tr class="form-field">
+		<th scope="row">Photo de la famille</th>
+		<td><?php glm_media_picker( 'glm_image', array( $image ), false ); ?>
+		<p class="description">Utilisée sur l'accueil. Sans photo : celle du dernier modèle ajouté.</p></td>
+	</tr>
+	<tr class="form-field">
+		<th scope="row"><label for="glm_compact">Présentation dans le catalogue</label></th>
+		<td><select id="glm_compact" name="glm_compact">
+			<option value="" <?php selected( $compact, '' ); ?>>Automatique</option>
+			<option value="0" <?php selected( $compact, '0' ); ?>>Section complète</option>
+			<option value="1" <?php selected( $compact, '1' ); ?>>Regroupée avec les petites familles</option>
+		</select>
+		<p class="description">Automatique : les trois premières familles ont leur section, les suivantes sont regroupées.</p></td>
+	</tr>
+	<?php
+}
+
+add_action( 'famille_edit_form_fields', 'glm_famille_champs' );
+add_action( 'famille_add_form_fields', function () {
+	echo '<table class="form-table" role="presentation"><tbody>';
+	glm_famille_champs( null );
+	echo '</tbody></table>';
+} );
+
+function glm_famille_enregistrer( $term_id ) {
+	if ( ! isset( $_POST['glm_famille_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['glm_famille_nonce'] ), 'glm_famille' ) || ! current_user_can( 'manage_categories' ) ) {
+		return;
+	}
+	if ( isset( $_POST['glm_ordre'] ) ) {
+		$ordre = absint( $_POST['glm_ordre'] );
+		if ( $ordre ) {
+			update_term_meta( $term_id, 'glm_ordre', $ordre );
+		} else {
+			delete_term_meta( $term_id, 'glm_ordre' );
+		}
+	}
+	if ( isset( $_POST['glm_image'] ) ) {
+		$image = absint( $_POST['glm_image'] );
+		if ( $image ) {
+			update_term_meta( $term_id, 'glm_image', $image );
+		} else {
+			delete_term_meta( $term_id, 'glm_image' );
+		}
+	}
+	if ( isset( $_POST['glm_compact'] ) ) {
+		$compact = sanitize_key( $_POST['glm_compact'] );
+		if ( in_array( $compact, array( '0', '1' ), true ) ) {
+			update_term_meta( $term_id, 'glm_compact', $compact );
+		} else {
+			delete_term_meta( $term_id, 'glm_compact' );
+		}
+	}
+}
+add_action( 'edited_famille', 'glm_famille_enregistrer' );
+add_action( 'created_famille', 'glm_famille_enregistrer' );
+
+// Colonne « Ordre » dans la liste des familles.
+add_filter( 'manage_edit-famille_columns', function ( $columns ) {
+	$columns['glm_ordre'] = 'Ordre';
+	return $columns;
+} );
+add_filter( 'manage_famille_custom_column', function ( $content, $column, $term_id ) {
+	return 'glm_ordre' === $column ? esc_html( (string) get_term_meta( $term_id, 'glm_ordre', true ) ) : $content;
+}, 10, 3 );

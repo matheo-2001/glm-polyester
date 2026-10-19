@@ -1,6 +1,8 @@
-/* GLM Polyester : menu mobile, apparitions au défilement, filtres, galerie de fiche. */
+/* GLM Polyester : menu mobile, menus déroulants, apparitions, catalogue, galeries, visionneuse, formulaire de devis. */
 (function () {
 	'use strict';
+
+	var reduit = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 	/* ----- Ombre de l'en-tête au défilement ----- */
 	var header = document.querySelector('.site-header');
@@ -12,19 +14,30 @@
 		window.addEventListener('scroll', onScroll, { passive: true });
 	}
 
-	/* ----- Menu mobile ----- */
+	/* ----- Menu mobile : panneau à hauteur d'écran, page bloquée derrière ----- */
 	var burger = document.querySelector('.burger');
 	var panel = document.getElementById('menu-mobile');
-	if (burger && panel) {
+	if (burger && panel && header) {
+		var arriere = [document.querySelector('main'), document.querySelector('.site-footer')];
 		var setOpen = function (open) {
 			burger.setAttribute('aria-expanded', open ? 'true' : 'false');
 			burger.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+			if (open) {
+				header.style.setProperty('--bas-entete', Math.round(header.getBoundingClientRect().bottom) + 'px');
+			}
 			panel.classList.toggle('is-open', open);
+			document.documentElement.classList.toggle('menu-ouvert', open);
+			// Le contenu derrière le menu n'est plus atteignable au clavier ni lu par les lecteurs d'écran.
+			arriere.forEach(function (el) {
+				if (el) {
+					el.inert = open;
+				}
+			});
 		};
 		burger.addEventListener('click', function () {
 			setOpen(burger.getAttribute('aria-expanded') !== 'true');
 		});
-		// Un lien vers une ancre de la même page referme le menu.
+		// Un lien (vers une ancre de la même page, par exemple) referme le menu.
 		panel.addEventListener('click', function (event) {
 			if (event.target.closest('a')) {
 				setOpen(false);
@@ -37,7 +50,7 @@
 			}
 		});
 		window.addEventListener('resize', function () {
-			if (window.innerWidth > 1100) {
+			if (window.innerWidth > 1100 && burger.getAttribute('aria-expanded') === 'true') {
 				setOpen(false);
 			}
 		});
@@ -113,7 +126,7 @@
 
 	/* ----- Apparition discrète des sections ----- */
 	var reveals = document.querySelectorAll('.reveal');
-	if ('IntersectionObserver' in window && reveals.length) {
+	if ('IntersectionObserver' in window && reveals.length && !reduit.matches) {
 		var observer = new IntersectionObserver(function (entries) {
 			entries.forEach(function (entry) {
 				if (entry.isIntersecting) {
@@ -131,12 +144,86 @@
 		});
 	}
 
+	/* ----- Catalogue : la barre des familles suit la section affichée ----- */
+	var barre = document.querySelector('.barre-familles');
+	var ancres = barre ? barre.querySelectorAll('a[data-ancre]') : [];
+	if (ancres.length && 'IntersectionObserver' in window) {
+		var tout = barre.querySelector('a:not([data-ancre])');
+		var activer = function (lien) {
+			barre.querySelectorAll('a').forEach(function (a) {
+				if (a === lien) {
+					a.setAttribute('aria-current', 'true');
+				} else {
+					a.removeAttribute('aria-current');
+				}
+			});
+			if (lien && lien.scrollIntoView && lien.parentNode.scrollWidth > lien.parentNode.clientWidth) {
+				var conteneur = lien.parentNode;
+				var gauche = lien.offsetLeft - (conteneur.clientWidth - lien.offsetWidth) / 2;
+				conteneur.scrollTo({ left: gauche, behavior: reduit.matches ? 'auto' : 'smooth' });
+			}
+		};
+		var sections = [];
+		ancres.forEach(function (a) {
+			var cible = document.getElementById(a.getAttribute('href').slice(1));
+			if (cible) {
+				sections.push({ lien: a, cible: cible });
+			}
+		});
+		var suivre = function () {
+			var limite = (barre.getBoundingClientRect().bottom || 0) + 24;
+			var courant = null;
+			if (window.scrollY < 40) {
+				activer(tout);
+				return;
+			}
+			sections.forEach(function (s) {
+				if (s.cible.getBoundingClientRect().top <= limite) {
+					courant = s.lien;
+				}
+			});
+			activer(courant || tout);
+		};
+		var attente = null;
+		window.addEventListener('scroll', function () {
+			if (attente) { return; }
+			attente = window.requestAnimationFrame(function () {
+				attente = null;
+				suivre();
+			});
+		}, { passive: true });
+	}
+
+	/* ----- Galerie : la dernière rangée est toujours pleine (quelques photos passent en grand format) ----- */
+	var galerie = document.getElementById('galerie');
+	var combler = function () {
+		if (!galerie) { return; }
+		var visibles = Array.prototype.filter.call(galerie.querySelectorAll('.galerie__item'), function (el) {
+			el.classList.remove('galerie__item--comble');
+			return !el.hidden;
+		});
+		var colonnes = getComputedStyle(galerie).gridTemplateColumns.split(' ').length;
+		if (colonnes < 2) { return; }
+		var cases = visibles.reduce(function (s, el) {
+			return s + (el.classList.contains('galerie__item--large') ? 2 : 1);
+		}, 0);
+		var manque = (colonnes - (cases % colonnes)) % colonnes;
+		var petites = visibles.filter(function (el) { return !el.classList.contains('galerie__item--large'); });
+		for (var i = 0; i < manque && i < petites.length; i++) {
+			petites[petites.length - 1 - i].classList.add('galerie__item--comble');
+		}
+	};
+	combler();
+	window.addEventListener('resize', combler);
+
 	/* ----- Filtres de la galerie de réalisations ----- */
 	var filtres = document.querySelectorAll('[data-filtre]');
 	var items = document.querySelectorAll('#galerie .galerie__item');
+	var compte = document.getElementById('galerie-compte');
 	filtres.forEach(function (bouton) {
 		bouton.addEventListener('click', function () {
 			var valeur = bouton.getAttribute('data-filtre');
+			var visibles = 0;
 			filtres.forEach(function (autre) {
 				var actif = autre === bouton;
 				autre.classList.toggle('is-active', actif);
@@ -146,12 +233,18 @@
 				var types = (item.getAttribute('data-types') || '').split(' ');
 				item.hidden = valeur !== '' && types.indexOf(valeur) === -1;
 				item.classList.add('is-visible');
+				if (!item.hidden) { visibles++; }
 			});
+			combler();
+			if (compte) {
+				compte.textContent = visibles + (visibles > 1 ? ' réalisations affichées' : ' réalisation affichée');
+			}
 		});
 	});
 
 	/* ----- Vignettes de la fiche modèle ----- */
 	var grande = document.getElementById('fiche-photo-img');
+	var zoomFiche = document.querySelector('.fiche2__zoom');
 	var vignettes = document.querySelectorAll('.fiche__vignettes button');
 	vignettes.forEach(function (vignette) {
 		vignette.addEventListener('click', function () {
@@ -162,13 +255,27 @@
 			grande.removeAttribute('sizes');
 			grande.src = vignette.getAttribute('data-src');
 			grande.alt = vignette.getAttribute('data-alt') || '';
+			if (zoomFiche) {
+				zoomFiche.setAttribute('data-index', vignette.getAttribute('data-index') || '0');
+			}
 			vignettes.forEach(function (autre) {
 				autre.setAttribute('aria-pressed', autre === vignette ? 'true' : 'false');
 			});
 		});
 	});
 
-	/* ----- Visionneuse des réalisations (carrousel plein écran) ----- */
+	/* ----- Fiche : barre « Demander un devis » en bas d'écran sur téléphone ----- */
+	var barreDevis = document.getElementById('barre-devis');
+	var actionsFiche = document.querySelector('.fiche2__actions');
+	if (barreDevis && actionsFiche && 'IntersectionObserver' in window) {
+		new IntersectionObserver(function (entries) {
+			var e = entries[0];
+			// Visible une fois le bouton de la fiche passé (au-dessus de l'écran), masquée sinon.
+			barreDevis.classList.toggle('is-visible', !e.isIntersecting && e.boundingClientRect.top < 0);
+		}).observe(actionsFiche);
+	}
+
+	/* ----- Visionneuse (carrousel plein écran) : réalisations et photos des fiches ----- */
 	var lightbox = document.getElementById('lightbox');
 	if (lightbox && typeof lightbox.showModal === 'function') {
 		var lbImg = lightbox.querySelector('.lightbox__img');
@@ -178,9 +285,9 @@
 		var current = 0;
 		var lastTrigger = null;
 
-		var collect = function (galerie) {
+		var collect = function (groupe) {
 			var list = [];
-			galerie.querySelectorAll('.galerie__item').forEach(function (item) {
+			groupe.querySelectorAll('[data-slides]').forEach(function (item) {
 				if (item.hidden) {
 					return;
 				}
@@ -190,8 +297,8 @@
 				} catch (e) {
 					data = [];
 				}
-				data.forEach(function (slide) {
-					list.push({ src: slide.src, alt: slide.alt, label: slide.label, caption: item.getAttribute('data-caption') || '', item: item });
+				data.forEach(function (slide, n) {
+					list.push({ src: slide.src, alt: slide.alt, label: slide.label, caption: item.getAttribute('data-caption') || '', item: item, n: n });
 				});
 			});
 			return list;
@@ -236,15 +343,16 @@
 		};
 
 		var open = function (trigger) {
-			var item = trigger.closest('.galerie__item');
-			var galerie = trigger.closest('.galerie');
-			if (!item || !galerie) {
+			var item = trigger.closest('[data-slides]');
+			var groupe = trigger.closest('[data-glm-groupe]') || item;
+			if (!item || !groupe) {
 				return;
 			}
-			slides = collect(galerie);
+			slides = collect(groupe);
+			var depart = parseInt(trigger.getAttribute('data-index') || '0', 10) || 0;
 			var start = 0;
 			for (var i = 0; i < slides.length; i++) {
-				if (slides[i].item === item) {
+				if (slides[i].item === item && slides[i].n === depart) {
 					start = i;
 					break;
 				}
@@ -254,7 +362,7 @@
 			show(start);
 			document.documentElement.classList.add('lightbox-open');
 			lightbox.showModal();
-			lightbox.querySelector('.lightbox__next').focus({ preventScroll: true });
+			lightbox.querySelector(slides.length < 2 ? '.lightbox__close' : '.lightbox__next').focus({ preventScroll: true });
 		};
 
 		document.addEventListener('click', function (event) {
@@ -311,10 +419,231 @@
 		});
 	}
 
-	/* ----- Confirmation du formulaire : on amène le message à l'écran ----- */
-	var avis = document.querySelector('.avis');
-	if (avis) {
-		avis.setAttribute('tabindex', '-1');
-		avis.focus({ preventScroll: true });
+	/* ----- Formulaire de devis ----- */
+	var form = document.getElementById('form-devis');
+	if (form) {
+		var CLE = 'glm-devis';
+		var champs = ['nom', 'societe', 'tel', 'email', 'type', 'modele', 'message'];
+		var statut = new URLSearchParams(window.location.search).get('contact');
+		var messages = {
+			nom: 'Indiquez votre nom.',
+			joindre: 'Indiquez un téléphone ou un e-mail pour que nous puissions vous répondre.',
+			email: 'Cette adresse e-mail n\'est pas valide (exemple : nom@domaine.fr).',
+			message: 'Décrivez votre demande en quelques mots.'
+		};
+		var stockage = function (action, valeur) {
+			try {
+				if (action === 'lire') { return JSON.parse(window.sessionStorage.getItem(CLE) || 'null'); }
+				if (action === 'ecrire') { window.sessionStorage.setItem(CLE, JSON.stringify(valeur)); }
+				if (action === 'effacer') { window.sessionStorage.removeItem(CLE); }
+			} catch (e) {
+				return null;
+			}
+			return null;
+		};
+
+		// Après un retour d'erreur du serveur, on remet ce qui avait été saisi ; après un envoi réussi, on oublie tout.
+		if (statut === 'ok') {
+			stockage('effacer');
+		} else if (statut) {
+			var saisie = stockage('lire');
+			if (saisie) {
+				champs.forEach(function (nom) {
+					var el = form.elements[nom];
+					if (el && saisie[nom] && !el.value) {
+						el.value = saisie[nom];
+					}
+				});
+			}
+		}
+
+		form.noValidate = true;
+		var erreur = function (cle, texte) {
+			var p = document.getElementById('err-' + cle);
+			if (p) {
+				p.textContent = texte || '';
+				p.hidden = !texte;
+			}
+		};
+		var marquer = function (el, invalide) {
+			if (invalide) {
+				el.setAttribute('aria-invalid', 'true');
+			} else {
+				el.removeAttribute('aria-invalid');
+			}
+		};
+		var valider = function () {
+			var e = form.elements;
+			var premier = null;
+			var nomVide = !e.nom.value.trim();
+			var mail = e.email.value.trim();
+			var mailFaux = mail !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail);
+			var joindre = !e.tel.value.trim() && !mail;
+			var messageVide = !e.message.value.trim();
+			erreur('nom', nomVide ? messages.nom : '');
+			marquer(e.nom, nomVide);
+			erreur('email', mailFaux ? messages.email : '');
+			erreur('joindre', joindre ? messages.joindre : '');
+			marquer(e.tel, joindre);
+			marquer(e.email, joindre || mailFaux);
+			erreur('message', messageVide ? messages.message : '');
+			marquer(e.message, messageVide);
+			if (nomVide) { premier = e.nom; } else if (joindre) { premier = e.tel; } else if (mailFaux) { premier = e.email; } else if (messageVide) { premier = e.message; }
+			return premier;
+		};
+
+		// Les erreurs disparaissent dès que le champ est corrigé.
+		form.addEventListener('input', function () {
+			if (form.classList.contains('a-verifier')) {
+				valider();
+			}
+		});
+
+		form.addEventListener('submit', function (event) {
+			form.classList.add('a-verifier');
+			var premier = valider();
+			if (premier) {
+				event.preventDefault();
+				premier.focus();
+				return;
+			}
+			var saisie = {};
+			champs.forEach(function (nom) {
+				if (form.elements[nom]) { saisie[nom] = form.elements[nom].value; }
+			});
+			stockage('ecrire', saisie);
+			if (photosEnCours) {
+				event.preventDefault();
+				envoiDiffere = true;
+				return;
+			}
+			form.classList.add('is-envoi');
+		});
+
+		/* Photos : réduites dans le navigateur avant l'envoi (2 000 px, JPEG), dans la limite du serveur. */
+		var input = document.getElementById('photos');
+		var liste = document.getElementById('photos-liste');
+		var max = parseInt(form.getAttribute('data-photos-max') || '5', 10);
+		var poidsMax = parseInt(form.getAttribute('data-poids-max') || '0', 10);
+		var photosEnCours = false;
+		var envoiDiffere = false;
+		var poids = function (o) {
+			return o > 1048576 ? (o / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(o / 1024)) + ' Ko';
+		};
+		var reduire = function (fichier) {
+			return new Promise(function (resolve) {
+				if (!/^image\/(jpeg|png|webp)$/.test(fichier.type) || !window.createImageBitmap || !window.DataTransfer) {
+					resolve(fichier);
+					return;
+				}
+				window.createImageBitmap(fichier).then(function (bitmap) {
+					var cote = 2000;
+					var echelle = Math.min(1, cote / Math.max(bitmap.width, bitmap.height));
+					if (echelle === 1 && fichier.size < 1.5 * 1048576) {
+						resolve(fichier);
+						return;
+					}
+					var canvas = document.createElement('canvas');
+					canvas.width = Math.round(bitmap.width * echelle);
+					canvas.height = Math.round(bitmap.height * echelle);
+					var ctx = canvas.getContext('2d');
+					ctx.fillStyle = '#fff';
+					ctx.fillRect(0, 0, canvas.width, canvas.height);
+					ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+					canvas.toBlob(function (blob) {
+						if (!blob || blob.size >= fichier.size) {
+							resolve(fichier);
+							return;
+						}
+						var nom = fichier.name.replace(/\.[^.]+$/, '') + '.jpg';
+						resolve(new File([blob], nom, { type: 'image/jpeg', lastModified: Date.now() }));
+					}, 'image/jpeg', 0.82);
+				}).catch(function () {
+					resolve(fichier);
+				});
+			});
+		};
+		var afficher = function (fichiers) {
+			liste.textContent = '';
+			if (!fichiers.length) {
+				return;
+			}
+			fichiers.forEach(function (f) {
+				var li = document.createElement('li');
+				if (/^image\//.test(f.type) && window.URL) {
+					var img = document.createElement('img');
+					img.alt = '';
+					img.src = URL.createObjectURL(f);
+					li.appendChild(img);
+				}
+				li.appendChild(document.createTextNode(f.name + ' (' + poids(f.size) + ')'));
+				liste.appendChild(li);
+			});
+			var li = document.createElement('li');
+			var vider = document.createElement('button');
+			vider.type = 'button';
+			vider.className = 'photos-liste__vider';
+			vider.textContent = 'Retirer les photos';
+			vider.addEventListener('click', function () {
+				input.value = '';
+				afficher([]);
+				erreur('photos', '');
+				input.focus();
+			});
+			li.appendChild(vider);
+			liste.appendChild(li);
+		};
+		if (input && liste) {
+			input.addEventListener('change', function () {
+				var fichiers = Array.prototype.slice.call(input.files || []);
+				var note = '';
+				if (fichiers.length > max) {
+					note = 'Seules les ' + max + ' premières photos seront envoyées.';
+					fichiers = fichiers.slice(0, max);
+				}
+				photosEnCours = true;
+				liste.textContent = '';
+				var attente = document.createElement('li');
+				attente.textContent = 'Préparation des photos…';
+				liste.appendChild(attente);
+				Promise.all(fichiers.map(reduire)).then(function (prets) {
+					var total = prets.reduce(function (s, f) { return s + f.size; }, 0);
+					if (poidsMax && total > poidsMax) {
+						note = 'Les photos pèsent ' + poids(total) + ', au-delà de la limite de ' + poids(poidsMax) + '. Retirez-en une ou deux.';
+					}
+					if (window.DataTransfer) {
+						try {
+							var dt = new DataTransfer();
+							prets.forEach(function (f) { dt.items.add(f); });
+							input.files = dt.files;
+						} catch (e) {
+							prets = fichiers;
+						}
+					}
+					afficher(prets);
+					erreur('photos', note);
+					photosEnCours = false;
+					if (envoiDiffere) {
+						envoiDiffere = false;
+						if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+					}
+				});
+			});
+		}
+
+		// Après le rechargement : le message de confirmation ou d'erreur est amené à l'écran et annoncé.
+		var avis = form.querySelector('.avis');
+		if (avis) {
+			avis.setAttribute('tabindex', '-1');
+			// Après le chargement complet (le navigateur replace le focus en arrivant sur #formulaire).
+			var focusAvis = function () {
+				window.setTimeout(function () { avis.focus(); }, 60);
+			};
+			if (document.readyState === 'complete') {
+				focusAvis();
+			} else {
+				window.addEventListener('load', focusAvis);
+			}
+		}
 	}
 })();

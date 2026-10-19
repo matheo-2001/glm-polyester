@@ -67,7 +67,7 @@ add_action( 'customize_register', function ( $wp_customize ) {
 	/* ----- Photos des sections ----- */
 	$wp_customize->add_section( 'glm_photos', array(
 		'title'       => 'Photos des sections',
-		'description' => 'Sans photo choisie, le site affiche la photo par défaut ou un bloc « Photo à venir ».',
+		'description' => 'Sans photo choisie, le site affiche la photo par défaut, ou une mise en page sans photo.',
 		'panel'       => 'glm',
 	) );
 	$photos = array(
@@ -81,6 +81,9 @@ add_action( 'customize_register', function ( $wp_customize ) {
 		'img_etape_1'     => 'Atelier : étape 1, choix du modèle et moulage',
 		'img_etape_2'     => 'Atelier : étape 2, thermoformage',
 		'img_etape_3'     => 'Atelier : étape 3, peinture et éclairage',
+		'img_perso_1'     => 'Accueil, Personnalisable : photo du choix 1 (couleurs)',
+		'img_perso_2'     => 'Accueil, Personnalisable : photo du choix 2 (décor peint)',
+		'img_perso_3'     => 'Accueil, Personnalisable : photo du choix 3 (covering)',
 	);
 	foreach ( $photos as $key => $label ) {
 		$wp_customize->add_setting( 'glm_' . $key, array(
@@ -92,6 +95,28 @@ add_action( 'customize_register', function ( $wp_customize ) {
 			'section'   => 'glm_photos',
 			'mime_type' => 'image',
 		) ) );
+	}
+
+	/* ----- Textes des pages (registre inc/textes.php) ----- */
+	$priorite = 40;
+	foreach ( glm_textes() as $section_id => $section ) {
+		$wp_customize->add_section( $section_id, array(
+			'title'    => $section[0],
+			'panel'    => 'glm',
+			'priority' => $priorite++,
+		) );
+		foreach ( $section[1] as $key => $field ) {
+			$wp_customize->add_setting( 'glm_' . $key, array(
+				'default'           => $field[1],
+				'sanitize_callback' => 'textarea' === $field[2] ? 'sanitize_textarea_field' : 'sanitize_text_field',
+			) );
+			$wp_customize->add_control( 'glm_' . $key, array(
+				'label'       => $field[0],
+				'description' => $field[3],
+				'section'     => $section_id,
+				'type'        => $field[2],
+			) );
+		}
 	}
 
 	/* ----- Atelier ----- */

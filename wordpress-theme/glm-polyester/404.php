@@ -5,7 +5,7 @@
 get_header();
 ?>
 <section class="section">
-	<div class="container" style="display: flex; flex-direction: column; align-items: flex-start; gap: 24px;">
+	<div class="container page-404">
 		<p class="eyebrow">Erreur 404</p>
 		<h1 class="display display--l">Cette page n'existe pas</h1>
 		<p class="page-hero__lead">Le lien est peut-être ancien, ou l'adresse mal saisie.</p>

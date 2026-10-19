@@ -106,3 +106,33 @@ function glm_register_content_types() {
 		'show_in_rest'      => false,
 	) );
 }
+
+/* ---------- Pages « thème » du catalogue : /catalogue/theme/noel/ ---------- */
+add_action( 'init', function () {
+	add_rewrite_rule( '^catalogue/theme/([^/]+)/?$', 'index.php?post_type=modele&glm_theme=$matches[1]', 'top' );
+}, 20 );
+
+add_filter( 'query_vars', function ( $vars ) {
+	$vars[] = 'glm_theme';
+	return $vars;
+} );
+
+// Règles d'adresse recalculées une fois après une mise à jour du thème.
+add_action( 'init', function () {
+	if ( get_option( 'glm_rewrite_version' ) !== GLM_VERSION ) {
+		flush_rewrite_rules( false );
+		update_option( 'glm_rewrite_version', GLM_VERSION );
+	}
+}, 99 );
+
+// Anciennes adresses « /catalogue/?theme=noel » : redirection vers la nouvelle.
+add_action( 'template_redirect', function () {
+	if ( ! is_post_type_archive( 'modele' ) || empty( $_GET['theme'] ) ) { // phpcs:ignore
+		return;
+	}
+	$term = get_term_by( 'slug', sanitize_key( wp_unslash( $_GET['theme'] ) ), 'theme_glm' ); // phpcs:ignore
+	if ( $term ) {
+		wp_safe_redirect( glm_theme_url( $term ), 301 );
+		exit;
+	}
+} );

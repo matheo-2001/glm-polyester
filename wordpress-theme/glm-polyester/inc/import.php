@@ -153,6 +153,13 @@ function glm_run_import() {
 		}
 		if ( ! is_wp_error( $res ) ) {
 			update_term_meta( (int) $res['term_id'], 'glm_ordre', (int) $item['ordre'] );
+			// Facultatif : photo de la famille (nom de fichier du dossier glm-import).
+			if ( ! empty( $item['image'] ) ) {
+				$photo = $get( $item['image'], $item['name'] );
+				if ( $photo ) {
+					update_term_meta( (int) $res['term_id'], 'glm_image', $photo );
+				}
+			}
 		}
 	}
 

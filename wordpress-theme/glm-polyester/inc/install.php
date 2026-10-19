@@ -60,7 +60,7 @@ function glm_install() {
 
 	/* ----- Réglages généraux ----- */
 	update_option( 'blogname', 'GLM Polyester' );
-	update_option( 'blogdescription', 'Constructeur de manèges, voitures de manège et pièces en polyester' );
+	update_option( 'blogdescription', 'Constructeur de manèges, sujets et pièces en polyester' );
 	update_option( 'timezone_string', 'Europe/Paris' );
 	update_option( 'date_format', 'j F Y' );
 	update_option( 'time_format', 'H:i' );
@@ -89,11 +89,7 @@ function glm_install() {
 		'Mentions légales',
 		"<h2>Éditeur du site</h2>\n<p>GLM Polyester, société par actions simplifiée au capital de 5 000 €.<br>Siège social : 46 rue de Montdidier, 60120 Breteuil.<br>RCS Beauvais 977 989 318. SIRET 977 989 318 00026.<br>TVA intracommunautaire : FR42977989318.</p>\n<p>Directeur de la publication : [NOM À COMPLÉTER].<br>Contact : [TÉLÉPHONE ET E-MAIL À COMPLÉTER].</p>\n<h2>Hébergement</h2>\n<p>[NOM, ADRESSE ET TÉLÉPHONE DE L'HÉBERGEUR À COMPLÉTER]</p>\n<h2>Propriété intellectuelle</h2>\n<p>Les textes, photos et modèles présentés sur ce site sont la propriété de GLM Polyester. Toute reproduction sans autorisation est interdite.</p>"
 	);
-	$confidentialite = glm_ensure_page(
-		'politique-de-confidentialite',
-		'Politique de confidentialité',
-		"<h2>Données collectées</h2>\n<p>Les informations saisies dans le formulaire de contact (nom, société, téléphone, e-mail, message et photos jointes) sont transmises par e-mail à GLM Polyester. Elles servent uniquement à répondre à votre demande et à établir un devis.</p>\n<h2>Conservation</h2>\n<p>[DURÉE DE CONSERVATION À PRÉCISER]</p>\n<h2>Vos droits</h2>\n<p>Vous pouvez demander l'accès à vos données, leur rectification ou leur suppression en nous écrivant à l'adresse indiquée sur la page Contact.</p>\n<h2>Cookies</h2>\n<p>Ce site n'utilise pas de cookies publicitaires ni d'outil de suivi.</p>"
-	);
+	$confidentialite = glm_ensure_page( 'politique-de-confidentialite', 'Politique de confidentialité', glm_texte_confidentialite() );
 
 	update_option( 'show_on_front', 'page' );
 	update_option( 'page_on_front', $accueil );
@@ -102,8 +98,8 @@ function glm_install() {
 	/* ----- Familles du catalogue ----- */
 	$familles = array(
 		'maneges-complets'   => array( 'Manèges complets', 'Manèges enfantins livrés prêts à tourner, décor et éclairage compris.' ),
-		'voitures-et-sujets' => array( 'Voitures et sujets', 'Voitures, camions, traîneaux, personnages : à l\'unité ou en série.' ),
-		'pieces-polyester'   => array( 'Pièces polyester et résine', 'Décors, éléments de carrosserie et pièces de remplacement.' ),
+		'voitures-et-sujets' => array( 'Voitures et sujets', 'Voitures, camions, traîneaux : à l\'unité ou en série.' ),
+		'pieces-polyester'   => array( 'Pièces et thermoformage', 'Décors, éléments de carrosserie et pièces de remplacement, en polyester ou thermoformés.' ),
 	);
 	$famille_ids = array();
 	foreach ( $familles as $slug => $data ) {
@@ -117,7 +113,7 @@ function glm_install() {
 	}
 
 	$types = array();
-	foreach ( array( 'fabrication' => 'Fabrication', 'sur-mesure' => 'Sur mesure', 'renovation' => 'Rénovation' ) as $slug => $name ) {
+	foreach ( array( 'fabrication' => 'Fabrication', 'sur-mesure' => 'Personnalisable', 'renovation' => 'Rénovation' ) as $slug => $name ) {
 		$term = term_exists( $slug, 'type_realisation' );
 		if ( ! $term ) {
 			$term = wp_insert_term( $name, 'type_realisation', array( 'slug' => $slug ) );
@@ -144,7 +140,7 @@ function glm_install() {
 		),
 		array(
 			'title'   => 'Camion de pompiers',
-			'content' => 'Voiture de manège en forme de camion de pompiers, avec ses personnages.',
+			'content' => 'Sujet de manège en forme de camion de pompiers, avec ses personnages.',
 			'famille' => 'voitures-et-sujets',
 			'thumb'   => $img_pompier,
 			'galerie' => 0,
@@ -215,3 +211,34 @@ function glm_install() {
 
 	update_option( 'glm_installed', GLM_VERSION );
 }
+
+/** Texte de la politique de confidentialité de GLM Polyester. */
+function glm_texte_confidentialite() {
+	return "<h2>Données collectées</h2>\n<p>Les informations saisies dans le formulaire de contact (nom, société, téléphone, e-mail, message et photos jointes) sont transmises par e-mail à GLM Polyester. Elles servent uniquement à répondre à votre demande et à établir un devis.</p>\n<h2>Conservation</h2>\n<p>[DURÉE DE CONSERVATION À PRÉCISER]</p>\n<h2>Vos droits</h2>\n<p>Vous pouvez demander l'accès à vos données, leur rectification ou leur suppression en nous écrivant à l'adresse indiquée sur la page Contact.</p>\n<h2>Cookies</h2>\n<p>Ce site n'utilise pas de cookies publicitaires ni d'outil de suivi.</p>";
+}
+
+/**
+ * Une seule fois : si la page de confidentialité contient encore le modèle de WordPress
+ * (« Texte suggéré »), elle reçoit le texte de GLM Polyester et elle est publiée.
+ * Un texte déjà rédigé n'est jamais remplacé.
+ */
+add_action( 'admin_init', function () {
+	if ( get_option( 'glm_confidentialite_v1' ) || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	$id   = (int) get_option( 'wp_page_for_privacy_policy' );
+	$page = $id ? get_post( $id ) : null;
+	if ( ! $page || 'page' !== $page->post_type ) {
+		$page = get_page_by_path( 'politique-de-confidentialite' );
+	}
+	if ( $page && ( false !== strpos( $page->post_content, 'Texte suggéré' ) || '' === trim( $page->post_content ) ) ) {
+		wp_update_post( array(
+			'ID'           => $page->ID,
+			'post_status'  => 'publish',
+			'post_content' => glm_texte_confidentialite(),
+			'post_name'    => 'politique-de-confidentialite',
+		) );
+		update_option( 'wp_page_for_privacy_policy', $page->ID );
+	}
+	update_option( 'glm_confidentialite_v1', 1 );
+} );

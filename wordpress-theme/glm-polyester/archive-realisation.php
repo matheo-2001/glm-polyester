@@ -16,9 +16,9 @@ if ( is_wp_error( $glm_types ) ) {
 
 <section class="page-hero">
 	<div class="container">
-		<nav class="fil" aria-label="Fil d'Ariane"><a href="<?php echo esc_url( home_url( '/' ) ); ?>">Accueil</a> / Réalisations</nav>
+		<?php glm_fil( array(), 'Réalisations' ); ?>
 		<h1 class="display display--l">Réalisations</h1>
-		<p class="page-hero__lead">Sujets, décors, pièces et rénovations sortis de l'atelier.</p>
+		<p class="page-hero__lead"><?php echo esc_html( glm_t( 'realisations_intro' ) ); ?></p>
 		<?php if ( count( $glm_types ) > 1 ) : ?>
 			<div class="chips" role="group" aria-label="Filtrer les réalisations">
 				<button type="button" class="btn btn--contour btn--petit is-active" data-filtre="" aria-pressed="true">Tout</button>
@@ -40,19 +40,22 @@ if ( is_wp_error( $glm_types ) ) {
 <section class="section">
 	<div class="container">
 		<?php if ( have_posts() ) : ?>
-			<div class="galerie" id="galerie">
+			<p class="screen-reader-text" id="galerie-compte" aria-live="polite"></p>
+			<div class="galerie galerie--dense" id="galerie" data-glm-groupe>
 				<?php
+				$glm_n = 0;
 				while ( have_posts() ) {
 					the_post();
 					get_template_part( 'template-parts/realisation', null, array(
 						'post_id' => get_the_ID(),
 						'large'   => null,
+						'eager'   => $glm_n++ < 2,
 					) );
 				}
 				?>
 			</div>
 		<?php else : ?>
-			<p class="vide">Les photos de nos réalisations arrivent bientôt.</p>
+			<p class="vide"><?php echo esc_html( glm_t( 'realisations_vide' ) ); ?></p>
 		<?php endif; ?>
 	</div>
 </section>

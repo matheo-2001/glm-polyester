@@ -16,7 +16,7 @@
 <header class="site-header" id="haut">
 	<div class="container site-header__bar">
 		<a class="site-logo" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="GLM Polyester, accueil">
-			<img src="<?php echo esc_url( glm_asset( 'img/logo-glm.png' ) ); ?>" alt="GLM Polyester" width="582" height="363">
+			<?php echo glm_logo(); // phpcs:ignore ?>
 		</a>
 		<nav class="site-nav" aria-label="Menu principal">
 			<?php glm_nav_list(); ?>

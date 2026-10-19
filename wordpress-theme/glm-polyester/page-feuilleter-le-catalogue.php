@@ -9,17 +9,19 @@ get_header();
 $glm_pages = glm_catalogue_pages();
 $glm_pdf   = glm_catalogue_pdf_url();
 $glm_total = count( $glm_pages );
+$glm_sizes = '(min-width: 1024px) 50vw, 100vw';
 
 ?>
 
 <section class="flip-section">
 	<div class="container">
 		<div class="flip-tete">
-			<nav class="fil" aria-label="Fil d'Ariane"><a href="<?php echo esc_url( home_url( '/' ) ); ?>">Accueil</a> / <a href="<?php echo esc_url( glm_catalogue_url() ); ?>">Catalogue</a> / Feuilleter</nav>
+			<?php glm_fil( array( 'Catalogue' => glm_catalogue_url() ), 'Feuilleter' ); ?>
 			<h1 class="display display--s">Feuilleter le catalogue</h1>
 		</div>
 		<?php if ( $glm_pages ) : ?>
-			<div class="flip" id="flip" data-total="<?php echo esc_attr( $glm_total ); ?>" data-ratio="<?php echo esc_attr( round( $glm_pages[0]['w'] / $glm_pages[0]['h'], 4 ) ); ?>">
+			<?php $glm_ratio = round( $glm_pages[0]['w'] / $glm_pages[0]['h'], 4 ); ?>
+			<div class="flip" id="flip" data-total="<?php echo esc_attr( $glm_total ); ?>" data-ratio="<?php echo esc_attr( $glm_ratio ); ?>" style="<?php echo esc_attr( '--ratio: ' . $glm_ratio . '; --spread: ' . round( $glm_ratio * 2, 4 ) . ';' ); ?>">
 				<div class="flip__barre">
 					<div class="flip__nav">
 						<button type="button" class="flip__btn" data-flip="prev" aria-label="Page précédente">
@@ -47,19 +49,29 @@ $glm_total = count( $glm_pages );
 				<div class="flip__scene">
 					<div class="flip__livre" id="flip-livre">
 						<?php foreach ( $glm_pages as $glm_index => $glm_page ) : ?>
-							<?php $glm_hard = 0 === $glm_index || $glm_total - 1 === $glm_index; ?>
+							<?php
+							$glm_hard   = 0 === $glm_index || $glm_total - 1 === $glm_index;
+							$glm_srcset = $glm_page['petit'] ? esc_url( $glm_page['petit'] ) . ' 900w, ' . esc_url( $glm_page['grand'] ) . ' 1600w' : '';
+							$glm_webp   = ( $glm_page['grand_webp'] && $glm_page['petit_webp'] ) ? esc_url( $glm_page['petit_webp'] ) . ' 900w, ' . esc_url( $glm_page['grand_webp'] ) . ' 1600w' : '';
+							?>
 							<div class="flip__page"<?php echo $glm_hard ? ' data-density="hard"' : ''; ?>>
-								<img
-									src="<?php echo esc_url( $glm_page['grand'] ); ?>"
-									<?php if ( $glm_page['petit'] ) : ?>
-										srcset="<?php echo esc_url( $glm_page['petit'] ); ?> 900w, <?php echo esc_url( $glm_page['grand'] ); ?> 1600w"
-										sizes="(min-width: 1024px) 50vw, 100vw"
+								<picture>
+									<?php if ( $glm_webp ) : ?>
+										<source type="image/webp" srcset="<?php echo $glm_webp; // phpcs:ignore ?>" sizes="<?php echo esc_attr( $glm_sizes ); ?>">
 									<?php endif; ?>
-									width="<?php echo esc_attr( $glm_page['w'] ); ?>"
-									height="<?php echo esc_attr( $glm_page['h'] ); ?>"
-									alt="<?php echo esc_attr( sprintf( 'Catalogue GLM Polyester, page %d sur %d', $glm_index + 1, $glm_total ) ); ?>"
-									<?php echo $glm_index > 3 ? 'loading="lazy"' : ''; ?>
-									draggable="false">
+									<img
+										src="<?php echo esc_url( $glm_page['grand'] ); ?>"
+										<?php if ( $glm_srcset ) : ?>
+											srcset="<?php echo $glm_srcset; // phpcs:ignore ?>"
+											sizes="<?php echo esc_attr( $glm_sizes ); ?>"
+										<?php endif; ?>
+										width="<?php echo esc_attr( $glm_page['w'] ); ?>"
+										height="<?php echo esc_attr( $glm_page['h'] ); ?>"
+										alt="<?php echo esc_attr( sprintf( 'Catalogue GLM Polyester, page %d sur %d', $glm_index + 1, $glm_total ) ); ?>"
+										<?php echo 0 === $glm_index ? 'fetchpriority="high"' : ( $glm_index > 2 ? 'loading="lazy"' : '' ); ?>
+										decoding="async"
+										draggable="false">
+								</picture>
 							</div>
 						<?php endforeach; ?>
 					</div>
@@ -78,5 +90,5 @@ $glm_total = count( $glm_pages );
 </section>
 
 <?php
-glm_cta( 'Un sujet vous intéresse ?', 'Dites-nous lequel et vos couleurs, nous revenons vers vous avec un devis.' );
+glm_cta( glm_t( 'cta_flip_titre' ), glm_t( 'cta_flip_texte' ) );
 get_footer();

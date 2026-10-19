@@ -8,87 +8,140 @@ $glm_realisations = get_posts( array(
 	'post_type'      => 'realisation',
 	'posts_per_page' => 3,
 ) );
+
+// Familles : les familles principales en grand (les plus fournies d'abord), les petites familles en petit, comme dans le catalogue.
+$glm_familles = glm_familles();
+$glm_grandes  = array_values( array_filter( $glm_familles, function ( $term ) {
+	return ! glm_famille_compacte( $term );
+} ) );
+$glm_petites  = array_values( array_filter( $glm_familles, 'glm_famille_compacte' ) );
+usort( $glm_grandes, function ( $a, $b ) {
+	return $b->count - $a->count;
+} );
+if ( count( $glm_grandes ) > 3 ) {
+	$glm_petites = array_merge( array_slice( $glm_grandes, 3 ), $glm_petites );
+	$glm_grandes = array_slice( $glm_grandes, 0, 3 );
+}
+$glm_total   = (int) wp_count_posts( 'modele' )->publish;
 ?>
 
-<section class="hero">
-	<div class="container hero__grid">
-		<div class="hero__text">
-			<p class="eyebrow"><?php echo esc_html( glm_opt( 'hero_surtitre', 'Constructeur de manèges · Breteuil, Oise' ) ); ?></p>
-			<h1 class="display display--xl"><?php echo esc_html( glm_opt( 'hero_titre', 'Manèges, sujets et pièces en polyester' ) ); ?></h1>
-			<p class="hero__lead"><?php echo esc_html( glm_opt( 'hero_texte', 'GLM Polyester fabrique, répare et rénove des manèges, des sujets et des pièces en polyester, et réalise des pièces thermoformées. Des modèles du catalogue, personnalisables.' ) ); ?></p>
+<section class="hero2 hero2--clair">
+	<div class="container hero2__grid">
+		<div class="hero2__texte">
+			<p class="hero2__lieu"><?php echo esc_html( glm_opt( 'hero_surtitre', 'Constructeur de manèges · Breteuil, Oise' ) ); ?></p>
+			<h1 class="display"><?php echo esc_html( glm_opt( 'hero_titre', 'Manèges, sujets et pièces en polyester' ) ); ?></h1>
+			<p class="hero2__lead"><?php echo esc_html( glm_opt( 'hero_texte', 'GLM Polyester fabrique, répare et rénove des manèges, des sujets et des pièces en polyester, et réalise des pièces thermoformées. Des modèles du catalogue, personnalisables.' ) ); ?></p>
 			<div class="hero__actions">
 				<a class="btn btn--rouge" href="<?php echo esc_url( glm_catalogue_url() ); ?>">Voir le catalogue</a>
 				<a class="btn btn--contour" href="<?php echo esc_url( glm_page_url( 'contact' ) ); ?>">Demander un devis</a>
 			</div>
 		</div>
-		<div class="hero__media slant">
-			<?php echo glm_image_opt( 'img_hero', 'img/traineau-serre.jpg', 'Sujet de manège fabriqué par GLM Polyester' ); // phpcs:ignore ?>
+		<div class="hero2__media">
+			<?php
+			echo glm_image_opt( 'img_hero', 'img/traineau-serre.jpg', 'Sujet de manège fabriqué par GLM Polyester', 'glm-large', array( // phpcs:ignore
+				'loading'       => 'eager',
+				'fetchpriority' => 'high',
+				'sizes'         => '(min-width: 1240px) 700px, (min-width: 1024px) 55vw, 100vw',
+			) );
+			?>
 		</div>
+	</div>
+	<div class="guirlande" aria-hidden="true"></div>
+	<?php $glm_publics = glm_t_lignes( 'publics' ); ?>
+	<?php if ( $glm_publics ) : ?>
+		<div class="hero2__public">
+			<div class="container">
+				<p><strong><?php echo esc_html( glm_t( 'publics_titre' ) ); ?></strong></p>
+				<ul>
+					<?php foreach ( $glm_publics as $glm_public ) : ?>
+						<li><?php echo esc_html( $glm_public ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		</div>
+	<?php endif; ?>
+</section>
+
+<section class="metiers">
+	<div class="container metiers__grid">
+		<?php for ( $glm_i = 1; $glm_i <= 4; $glm_i++ ) : ?>
+			<div class="reveal">
+				<h2 class="titre-carte"><?php echo esc_html( glm_t( 'metier_' . $glm_i . '_titre' ) ); ?></h2>
+				<p><?php echo esc_html( glm_t( 'metier_' . $glm_i . '_texte' ) ); ?></p>
+			</div>
+		<?php endfor; ?>
 	</div>
 </section>
 
-<section class="strip">
-	<div class="container strip__grid">
-		<div class="strip__item reveal">
-			<h2 class="titre-carte">Fabrication</h2>
-			<p>Manèges complets, sujets, pièces en polyester et pièces thermoformées.</p>
-		</div>
-		<div class="strip__item reveal">
-			<h2 class="titre-carte">Personnalisable</h2>
-			<p>Sujets roulants et volants : couleurs au choix, décor peint ou covering.</p>
-		</div>
-		<div class="strip__item reveal">
-			<h2 class="titre-carte">Réparation</h2>
-			<p>Pièces cassées ou fissurées remises en état, pour repartir en saison.</p>
-		</div>
-		<div class="strip__item reveal">
-			<h2 class="titre-carte">Rénovation</h2>
-			<p>Sujets et manèges anciens remis à neuf : structure, peinture, éclairage.</p>
-		</div>
-	</div>
-</section>
-
+<?php if ( $glm_familles ) : ?>
 <section class="section">
 	<div class="container">
 		<div class="section-head reveal">
-			<div class="section-head__titles">
-				<p class="eyebrow">Catalogue</p>
-				<h2 class="display display--m">Le catalogue</h2>
-			</div>
-			<a class="lien-fleche" href="<?php echo esc_url( glm_catalogue_url() ); ?>">Tout le catalogue</a>
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'accueil_catalogue_titre' ) ); ?></h2>
+			<a class="lien-fleche" href="<?php echo esc_url( glm_catalogue_url() ); ?>"><?php echo esc_html( $glm_total > 1 ? sprintf( 'Voir les %d modèles', $glm_total ) : 'Voir le catalogue' ); ?></a>
 		</div>
-		<div class="cards cards--4">
-			<?php foreach ( array_slice( glm_familles(), 0, 4 ) as $glm_term ) : ?>
-				<?php $glm_image = glm_famille_image( $glm_term ); ?>
-				<a class="card reveal" href="<?php echo esc_url( get_term_link( $glm_term ) ); ?>">
-					<div class="card__media">
-						<?php echo $glm_image ? $glm_image : glm_placeholder(); // phpcs:ignore ?>
-					</div>
-					<div class="card__body">
+		<div class="mosaique">
+			<?php foreach ( $glm_grandes as $glm_index => $glm_term ) : ?>
+				<?php
+				$glm_image = glm_famille_image( $glm_term, 0 === $glm_index ? 'glm-large' : 'glm-carte', '', 0 === $glm_index ? '(min-width: 1240px) 700px, (min-width: 640px) 58vw, 100vw' : '(min-width: 1240px) 500px, (min-width: 1024px) 40vw, (min-width: 640px) 50vw, 50vw' );
+				?>
+				<a class="tuile tuile--<?php echo esc_attr( (string) ( $glm_index + 1 ) ); ?><?php echo $glm_image ? '' : ' tuile--sans-photo'; ?>" href="<?php echo esc_url( get_term_link( $glm_term ) ); ?>">
+					<?php echo $glm_image; // phpcs:ignore ?>
+					<span class="tuile__txt">
 						<h3 class="titre-carte"><?php echo esc_html( $glm_term->name ); ?></h3>
-						<?php if ( $glm_term->description ) : ?>
-							<p><?php echo esc_html( $glm_term->description ); ?></p>
-						<?php endif; ?>
-						<span class="card__more">Voir les modèles</span>
-					</div>
+						<span class="tuile__nb"><?php echo esc_html( glm_nb_modeles( $glm_term->count ) ); ?></span>
+					</span>
+				</a>
+			<?php endforeach; ?>
+			<?php foreach ( $glm_petites as $glm_term ) : ?>
+				<?php $glm_image = glm_famille_image( $glm_term, 'glm-carte-s', '', '120px' ); ?>
+				<a class="tuile tuile--petite<?php echo $glm_image ? '' : ' tuile--sans-photo'; ?>" href="<?php echo esc_url( get_term_link( $glm_term ) ); ?>">
+					<?php echo $glm_image ? $glm_image : '<span class="tuile__vide" aria-hidden="true"></span>'; // phpcs:ignore ?>
+					<span class="tuile__txt">
+						<h3 class="titre-carte"><?php echo esc_html( $glm_term->name ); ?></h3>
+						<span class="tuile__nb"><?php echo esc_html( glm_nb_modeles( $glm_term->count ) ); ?></span>
+					</span>
 				</a>
 			<?php endforeach; ?>
 		</div>
+	</div>
+</section>
+<?php endif; ?>
+
+<section class="section section--fond">
+	<div class="container perso">
+		<div class="perso__texte reveal">
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'perso_titre' ) ); ?></h2>
+			<p><?php echo esc_html( glm_t( 'perso_texte' ) ); ?></p>
+			<?php if ( glm_t( 'perso_note' ) ) : ?>
+				<p class="perso__note"><?php echo esc_html( glm_t( 'perso_note' ) ); ?></p>
+			<?php endif; ?>
+			<a class="lien-fleche" href="<?php echo esc_url( add_query_arg( 'demande', 'sur-mesure', glm_page_url( 'contact' ) ) . '#formulaire' ); ?>"><?php echo esc_html( glm_t( 'perso_lien' ) ); ?></a>
+		</div>
+		<ul class="perso__choix">
+			<?php for ( $glm_i = 1; $glm_i <= 3; $glm_i++ ) : ?>
+				<?php $glm_photo = glm_image_opt( 'img_perso_' . $glm_i, '', glm_t( 'perso_' . $glm_i . '_titre' ), 'glm-carte', array( 'sizes' => '(min-width: 1024px) 220px, 33vw' ) ); ?>
+				<li class="reveal">
+					<div class="perso__visuel<?php echo $glm_photo ? '' : ' perso__visuel--' . $glm_i; ?>"<?php echo $glm_photo ? '' : ' aria-hidden="true"'; ?>><?php echo $glm_photo; // phpcs:ignore ?></div>
+					<strong><?php echo esc_html( glm_t( 'perso_' . $glm_i . '_titre' ) ); ?></strong>
+					<span><?php echo esc_html( glm_t( 'perso_' . $glm_i . '_texte' ) ); ?></span>
+				</li>
+			<?php endfor; ?>
+		</ul>
 	</div>
 </section>
 
 <section class="section section--sombre">
 	<div class="container split">
 		<div class="split__media reveal">
-			<?php echo glm_image_opt( 'img_atelier', 'img/traineau.jpg', 'Vue de l\'atelier avec un traîneau de manège terminé' ); // phpcs:ignore ?>
+			<?php echo glm_image_opt( 'img_atelier', 'img/traineau.jpg', 'Vue de l\'atelier avec un traîneau de manège terminé', 'glm-large', array( 'sizes' => '(min-width: 1024px) 640px, 100vw' ) ); // phpcs:ignore ?>
 		</div>
 		<div class="split__text reveal">
-			<p class="eyebrow">L'atelier</p>
-			<h2 class="display display--m">De la forme brute à la pièce finie</h2>
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'etapes_titre' ) ); ?></h2>
 			<ol class="etapes">
-				<li><span class="etapes__num">01</span><span><strong>Choix du modèle et moulage.</strong> <span>Le client choisit son modèle, puis la pièce est moulée.</span></span></li>
-				<li><span class="etapes__num">02</span><span><strong>Thermoformage.</strong> <span>Les pièces plastiques sont formées à chaud sur leur moule.</span></span></li>
-				<li><span class="etapes__num">03</span><span><strong>Peinture et éclairage.</strong> <span>Décor peint ou covering, puis pose de l'éclairage.</span></span></li>
+				<?php for ( $glm_i = 1; $glm_i <= 3; $glm_i++ ) : ?>
+					<li><span class="etapes__num"><?php echo esc_html( sprintf( '%02d', $glm_i ) ); ?></span><span><strong><?php echo esc_html( glm_t( 'etape_' . $glm_i . '_titre' ) ); ?>.</strong> <span><?php echo esc_html( glm_t( 'etape_' . $glm_i . '_texte' ) ); ?></span></span></li>
+				<?php endfor; ?>
 			</ol>
 			<a class="lien-fleche" href="<?php echo esc_url( glm_page_url( 'atelier' ) ); ?>">Découvrir l'atelier</a>
 		</div>
@@ -101,11 +154,11 @@ $glm_realisations = get_posts( array(
 		<div class="section-head reveal">
 			<div class="section-head__titles">
 				<p class="eyebrow">Réalisations</p>
-				<h2 class="display display--m">Sortis de l'atelier</h2>
+				<h2 class="display display--m"><?php echo esc_html( glm_t( 'realisations_titre' ) ); ?></h2>
 			</div>
 			<a class="lien-fleche" href="<?php echo esc_url( glm_realisations_url() ); ?>">Toutes les réalisations</a>
 		</div>
-		<div class="galerie">
+		<div class="galerie" data-glm-groupe>
 			<?php
 			foreach ( $glm_realisations as $glm_index => $glm_post ) {
 				get_template_part( 'template-parts/realisation', null, array(

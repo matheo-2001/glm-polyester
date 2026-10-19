@@ -16,6 +16,7 @@
 	var compteur = root.querySelector('.flip__compteur');
 
 	root.style.setProperty('--spread', String(ratio * 2));
+	root.style.setProperty('--ratio', String(ratio));
 	root.classList.add('is-ready');
 
 	var largeur = 1100;
@@ -29,7 +30,8 @@
 		maxHeight: 1600,
 		showCover: true,
 		usePortrait: true,
-		flippingTime: 800,
+		// Moins d'animation si le visiteur l'a demandé dans son système.
+		flippingTime: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 800,
 		maxShadowOpacity: 0.35,
 		mobileScrollSupport: true
 	});

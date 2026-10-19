@@ -5,10 +5,7 @@
 $glm_tel      = glm_opt( 'telephone' );
 $glm_email    = glm_opt( 'email' );
 $glm_facebook = glm_opt( 'facebook', 'https://www.facebook.com/glmpolyester/' );
-$glm_privacy  = get_privacy_policy_url();
-if ( ! $glm_privacy && get_page_by_path( 'politique-de-confidentialite' ) ) {
-	$glm_privacy = glm_page_url( 'politique-de-confidentialite' );
-}
+$glm_privacy  = glm_privacy_url();
 ?>
 </main>
 
@@ -16,7 +13,7 @@ if ( ! $glm_privacy && get_page_by_path( 'politique-de-confidentialite' ) ) {
 	<div class="container">
 		<div class="site-footer__grid">
 			<div class="site-footer__brand">
-				<img src="<?php echo esc_url( glm_asset( 'img/logo-glm.png' ) ); ?>" alt="GLM Polyester" width="582" height="363" loading="lazy">
+				<?php echo glm_logo( 'lazy' ); // phpcs:ignore ?>
 				<div><?php echo esc_html( glm_opt( 'adresse_1', '46 rue de Montdidier' ) ); ?><br><?php echo esc_html( glm_opt( 'adresse_2', '60120 Breteuil' ) ); ?></div>
 				<?php if ( $glm_tel || $glm_email ) : ?>
 					<div>

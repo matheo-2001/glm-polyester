@@ -7,14 +7,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GLM_VERSION', '1.0.0' );
+define( 'GLM_VERSION', '1.1.0' );
 
+require get_template_directory() . '/inc/textes.php';
 require get_template_directory() . '/inc/content-types.php';
 require get_template_directory() . '/inc/admin.php';
 require get_template_directory() . '/inc/customizer.php';
 require get_template_directory() . '/inc/contact.php';
 require get_template_directory() . '/inc/install.php';
 require get_template_directory() . '/inc/import.php';
+require get_template_directory() . '/inc/images.php';
+require get_template_directory() . '/inc/seo.php';
 
 /* ---------- Réglages du thème ---------- */
 add_action( 'after_setup_theme', function () {
@@ -22,6 +25,7 @@ add_action( 'after_setup_theme', function () {
 	add_theme_support( 'post-thumbnails' );
 	add_theme_support( 'html5', array( 'search-form', 'gallery', 'caption', 'style', 'script' ) );
 	add_image_size( 'glm-carte', 800, 600, true );
+	add_image_size( 'glm-carte-s', 400, 300, true );
 	add_image_size( 'glm-large', 1600, 1000, true );
 } );
 
@@ -34,12 +38,35 @@ add_action( 'wp_enqueue_scripts', function () {
 	}
 } );
 
-// Marque la page comme « avec JavaScript » le plus tôt possible (pour les apparitions au défilement).
+// Le thème n'utilise pas l'éditeur de blocs pour ses gabarits : on retire les styles de blocs chargés sur chaque page.
+add_action( 'wp_enqueue_scripts', function () {
+	foreach ( array( 'wp-block-library', 'wp-block-library-theme', 'classic-theme-styles', 'global-styles' ) as $handle ) {
+		wp_dequeue_style( $handle );
+	}
+}, 100 );
+remove_action( 'wp_enqueue_scripts', 'wp_enqueue_global_styles' );
+remove_action( 'wp_footer', 'wp_enqueue_global_styles', 1 );
+remove_action( 'wp_body_open', 'wp_global_styles_render_svg_filters' );
+
+// Marque la page comme « avec JavaScript » le plus tôt possible, et précharge les polices des titres et du texte.
 add_action( 'wp_head', function () {
 	echo "<script>document.documentElement.classList.add('js');</script>\n";
+	foreach ( array( 'barlow-condensed-latin-800-italic', 'barlow-latin-400-normal', 'barlow-latin-600-normal' ) as $font ) {
+		printf( '<link rel="preload" href="%s" as="font" type="font/woff2" crossorigin>' . "\n", esc_url( glm_asset( 'fonts/' . $font . '.woff2' ) ) );
+	}
 }, 1 );
 
-// Allège l'en-tête : pas d'emojis ni de styles de blocs inutiles sur les gabarits du thème.
+// Icône d'onglet tirée du logo, tant qu'aucune icône n'est choisie dans Personnaliser > Identité du site.
+add_action( 'wp_head', function () {
+	if ( has_site_icon() ) {
+		return;
+	}
+	printf( '<link rel="icon" href="%s" sizes="32x32" type="image/png">' . "\n", esc_url( glm_asset( 'img/favicon-32.png' ) ) );
+	printf( '<link rel="icon" href="%s" sizes="192x192" type="image/png">' . "\n", esc_url( glm_asset( 'img/favicon-192.png' ) ) );
+	printf( '<link rel="apple-touch-icon" href="%s">' . "\n", esc_url( glm_asset( 'img/apple-touch-icon.png' ) ) );
+}, 3 );
+
+// Allège l'en-tête : pas d'emojis.
 remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
 remove_action( 'wp_print_styles', 'print_emoji_styles' );
 
@@ -58,8 +85,12 @@ function glm_asset( $path ) {
 
 /** URL d'une page par son identifiant court, avec repli sur l'accueil. */
 function glm_page_url( $slug ) {
-	$page = get_page_by_path( $slug );
-	return $page ? get_permalink( $page ) : home_url( '/' . $slug . '/' );
+	static $cache = array();
+	if ( ! isset( $cache[ $slug ] ) ) {
+		$page           = get_page_by_path( $slug );
+		$cache[ $slug ] = $page ? get_permalink( $page ) : home_url( '/' . $slug . '/' );
+	}
+	return $cache[ $slug ];
 }
 
 function glm_catalogue_url() {
@@ -70,6 +101,36 @@ function glm_catalogue_url() {
 function glm_realisations_url() {
 	$url = get_post_type_archive_link( 'realisation' );
 	return $url ? $url : home_url( '/realisations/' );
+}
+
+/** Adresse de la page de confidentialité, seulement si elle est publiée. */
+function glm_privacy_url() {
+	$url = get_privacy_policy_url();
+	if ( $url ) {
+		return $url;
+	}
+	$page = get_page_by_path( 'politique-de-confidentialite' );
+	return ( $page && 'publish' === $page->post_status ) ? get_permalink( $page ) : '';
+}
+
+/** Thème du catalogue affiché (page /catalogue/theme/…/), ou null. */
+function glm_theme_courant() {
+	static $theme = false;
+	if ( false !== $theme ) {
+		return $theme;
+	}
+	$theme = null;
+	$slug  = get_query_var( 'glm_theme' );
+	if ( $slug ) {
+		$term  = get_term_by( 'slug', sanitize_key( $slug ), 'theme_glm' );
+		$theme = $term ? $term : null;
+	}
+	return $theme;
+}
+
+/** Adresse d'une page « thème » du catalogue. */
+function glm_theme_url( $term ) {
+	return trailingslashit( glm_catalogue_url() ) . 'theme/' . $term->slug . '/';
 }
 
 /** Éléments du menu principal : libellé, URL, actif ou non. */
@@ -87,6 +148,7 @@ function glm_nav_items() {
 /**
  * Pages du catalogue à feuilleter : images wp-content/uploads/glm-catalogue/page-NN-1600.jpg
  * (et page-NN-900.jpg pour les petits écrans), tirées du PDF du catalogue.
+ * Une version .webp placée à côté est utilisée en priorité.
  */
 function glm_catalogue_pages() {
 	static $pages = null;
@@ -102,15 +164,20 @@ function glm_catalogue_pages() {
 		return $pages;
 	}
 	sort( $files );
+	$version = function ( $name ) use ( $dir, $url ) {
+		return file_exists( $dir . $name ) ? $url . $name . '?v=' . filemtime( $dir . $name ) : '';
+	};
 	foreach ( $files as $file ) {
-		$name  = basename( $file );
-		$small = str_replace( '-1600.jpg', '-900.jpg', $name );
-		$size  = getimagesize( $file );
+		$name    = basename( $file );
+		$small   = str_replace( '-1600.jpg', '-900.jpg', $name );
+		$size    = getimagesize( $file );
 		$pages[] = array(
-			'grand' => $url . $name . '?v=' . filemtime( $file ),
-			'petit' => file_exists( $dir . $small ) ? $url . $small . '?v=' . filemtime( $dir . $small ) : '',
-			'w'     => $size ? (int) $size[0] : 1600,
-			'h'     => $size ? (int) $size[1] : 1131,
+			'grand'      => $version( $name ),
+			'petit'      => $version( $small ),
+			'grand_webp' => $version( str_replace( '.jpg', '.webp', $name ) ),
+			'petit_webp' => $version( str_replace( '.jpg', '.webp', $small ) ),
+			'w'          => $size ? (int) $size[0] : 1600,
+			'h'          => $size ? (int) $size[1] : 1131,
 		);
 	}
 	return $pages;
@@ -141,15 +208,13 @@ add_action( 'admin_init', function () {
 	}
 } );
 
-/** Blocs de la page Services, repris dans le menu déroulant (ancre = titre). */
-function glm_services_menu() {
-	return array(
-		'Fabrication'     => 'Manèges, sujets et pièces du catalogue.',
-		'Personnalisable' => 'Couleurs, décor peint ou covering.',
-		'Thermoformage'   => 'Cabochons, optiques et pièces formées à chaud.',
-		'Réparation'      => 'Pièces cassées ou usées remises en état.',
-		'Rénovation'      => 'Sujets et manèges anciens remis à neuf.',
-	);
+/** Blocs de la page Services : ancre => titre (modifiable). Les ancres ne changent pas. */
+function glm_services() {
+	$services = array();
+	foreach ( array( 'fabrication', 'personnalisable', 'thermoformage', 'reparation', 'renovation' ) as $slug ) {
+		$services[ $slug ] = glm_t( 'service_' . $slug . '_titre' );
+	}
+	return $services;
 }
 
 /** Flèche des menus déroulants. */
@@ -172,7 +237,7 @@ function glm_mega_catalogue() {
 		);
 	}
 	$html .= '</ul><ul class="dropdown__pied">';
-	$html .= '<li><a class="dropdown__tout" href="' . esc_url( glm_catalogue_url() ) . '">Tout le catalogue <span aria-hidden="true">→</span></a></li>';
+	$html .= '<li><a class="dropdown__tout" href="' . esc_url( glm_catalogue_url() ) . '">Tout le catalogue</a></li>';
 	if ( $feuille ) {
 		$html .= '<li><a class="dropdown__pdf" href="' . esc_url( $feuille ) . '"' . ( is_page( 'feuilleter-le-catalogue' ) ? ' aria-current="page"' : '' ) . '><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 3.5C6.5 2.3 4.3 2 1.5 2v10.5c2.8 0 5 .3 6.5 1.5 1.5-1.2 3.7-1.5 6.5-1.5V2C11.7 2 9.5 2.3 8 3.5zM8 3.5V14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Feuilleter le catalogue</a></li>';
 	}
@@ -186,8 +251,8 @@ function glm_mega_catalogue() {
 function glm_mega_services() {
 	$url  = glm_page_url( 'services' );
 	$html = '<div class="dropdown" id="mega-services"><ul>';
-	foreach ( array_keys( glm_services_menu() ) as $titre ) {
-		$html .= '<li><a href="' . esc_url( $url . '#' . sanitize_title( $titre ) ) . '">' . esc_html( $titre ) . '</a></li>';
+	foreach ( glm_services() as $slug => $titre ) {
+		$html .= '<li><a href="' . esc_url( $url . '#' . $slug ) . '">' . esc_html( $titre ) . '</a></li>';
 	}
 	return $html . '</ul></div>';
 }
@@ -208,8 +273,8 @@ function glm_sous_menu_mobile( $key ) {
 		}
 	} else {
 		$url = glm_page_url( 'services' );
-		foreach ( array_keys( glm_services_menu() ) as $titre ) {
-			$liens[] = array( $titre, $url . '#' . sanitize_title( $titre ) );
+		foreach ( glm_services() as $slug => $titre ) {
+			$liens[] = array( $titre, $url . '#' . $slug );
 		}
 	}
 	$html = '<ul class="mobile-sub" id="mobile-sub-' . esc_attr( $key ) . '" hidden>';
@@ -252,7 +317,16 @@ function glm_nav_list( $contexte = 'desktop' ) {
 	echo '</ul>';
 }
 
-/** Bloc « photo à venir ». */
+/** Logo du site (version allégée WebP, dimensions fixées pour éviter les décalages). */
+function glm_logo( $loading = 'eager' ) {
+	return sprintf(
+		'<img src="%s" alt="GLM Polyester" width="582" height="363"%s decoding="async">',
+		esc_url( glm_asset( 'img/logo-glm.webp' ) ),
+		'lazy' === $loading ? ' loading="lazy"' : ''
+	);
+}
+
+/** Bloc « photo à venir » (conservé pour compatibilité ; les gabarits affichent désormais une mise en page sans photo). */
 function glm_placeholder( $label = 'Photo à venir' ) {
 	return '<div class="placeholder">' . esc_html( $label ) . '</div>';
 }
@@ -262,42 +336,98 @@ function glm_tel_href( $tel ) {
 	return 'tel:' . preg_replace( '/[^0-9+]/', '', $tel );
 }
 
+/** Nombre de places lisible (« 4 » devient « 4 places »). */
+function glm_places( $value ) {
+	$value = trim( (string) $value );
+	return ( '' !== $value && is_numeric( substr( $value, 0, 1 ) ) && false === stripos( $value, 'place' ) ) ? $value . ' places' : $value;
+}
+
 /** Ligne de résumé d'un modèle (dimensions, places). */
 function glm_modele_resume( $post_id ) {
 	$parts = array();
-	foreach ( array( '_glm_dimensions', '_glm_places' ) as $key ) {
-		$value = get_post_meta( $post_id, $key, true );
-		if ( $value ) {
-			$parts[] = '_glm_places' === $key && is_numeric( substr( $value, 0, 1 ) ) ? $value . ' places' : $value;
-		}
+	$dims  = get_post_meta( $post_id, '_glm_dimensions', true );
+	$plac  = get_post_meta( $post_id, '_glm_places', true );
+	if ( $dims ) {
+		$parts[] = $dims;
+	}
+	if ( $plac ) {
+		$parts[] = glm_places( $plac );
 	}
 	return implode( ' · ', $parts );
 }
 
+/** Repères courts d'une carte : places et longueur (« L 1,90 m »). */
+function glm_modele_tags( $post_id ) {
+	$tags   = array();
+	$places = get_post_meta( $post_id, '_glm_places', true );
+	if ( $places ) {
+		$tags[] = glm_places( $places );
+	}
+	$dims = (string) get_post_meta( $post_id, '_glm_dimensions', true );
+	if ( preg_match( '/\bL\s*([0-9]+(?:[,.][0-9]+)?)/u', $dims, $m ) ) {
+		$unite  = preg_match( '/\bcm\b/u', $dims ) ? 'cm' : 'm';
+		$tags[] = 'L ' . $m[1] . ' ' . $unite;
+	}
+	return $tags;
+}
+
+/** Image d'une carte : tailles adaptées à l'affichage, cadrage haut pour les photos en hauteur. */
+function glm_image_carte( $attachment_id, $sizes, $eager = false ) {
+	$meta     = wp_get_attachment_metadata( $attachment_id );
+	$portrait = $meta && ! empty( $meta['width'] ) && ! empty( $meta['height'] ) && $meta['height'] > $meta['width'];
+	$attrs    = array(
+		'sizes'   => $sizes,
+		'class'   => $portrait ? 'is-portrait' : '',
+		'loading' => $eager ? 'eager' : 'lazy',
+	);
+	if ( $eager ) {
+		$attrs['fetchpriority'] = 'high';
+	}
+	// Photo en hauteur : le recadrage 4:3 de WordPress couperait le haut (une tête, un toit) ; on garde la photo entière.
+	return wp_get_attachment_image( $attachment_id, $portrait ? 'medium_large' : 'glm-carte', false, $attrs );
+}
+
+/** Tailles d'affichage des cartes du catalogue (4 colonnes, 3 sur tablette, 2 sur téléphone). */
+function glm_sizes_carte() {
+	return '(min-width: 1240px) 290px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 48vw';
+}
+
 /** Carte d'un modèle du catalogue. */
-function glm_modele_card( $post_id ) {
-	$resume = glm_modele_resume( $post_id );
-	$badge  = '1' === get_post_meta( $post_id, '_glm_sujet_glm', true );
+function glm_modele_card( $post_id, $args = array() ) {
+	$args  = wp_parse_args( $args, array( 'titre' => 'h3', 'eager' => false, 'extrait' => false ) );
+	$badge = '1' === get_post_meta( $post_id, '_glm_sujet_glm', true );
+	$tags  = glm_modele_tags( $post_id );
+	$tag   = in_array( $args['titre'], array( 'h2', 'h3', 'h4' ), true ) ? $args['titre'] : 'h3';
 	?>
-	<a class="card reveal" href="<?php echo esc_url( get_permalink( $post_id ) ); ?>">
-		<div class="card__media">
+	<a class="card2" href="<?php echo esc_url( get_permalink( $post_id ) ); ?>">
+		<div class="card2__media">
 			<?php if ( $badge ) : ?>
-				<span class="badge-glm">Sujet GLM</span>
+				<span class="tampon"><?php echo esc_html( glm_t( 'badge_court' ) ); ?></span>
 			<?php endif; ?>
 			<?php
 			if ( has_post_thumbnail( $post_id ) ) {
-				echo get_the_post_thumbnail( $post_id, 'glm-carte', array( 'loading' => 'lazy' ) );
+				echo glm_image_carte( get_post_thumbnail_id( $post_id ), glm_sizes_carte(), $args['eager'] ); // phpcs:ignore
 			} else {
-				echo glm_placeholder(); // phpcs:ignore
+				echo '<span class="card2__vide" aria-hidden="true"></span>';
 			}
 			?>
 		</div>
-		<div class="card__body">
-			<h3 class="titre-carte"><?php echo esc_html( get_the_title( $post_id ) ); ?></h3>
-			<?php if ( $resume ) : ?>
-				<p><?php echo esc_html( $resume ); ?></p>
+		<div class="card2__body">
+			<<?php echo $tag; // phpcs:ignore ?> class="titre-carte"><?php echo esc_html( get_the_title( $post_id ) ); ?></<?php echo $tag; // phpcs:ignore ?>>
+			<?php if ( $tags ) : ?>
+				<ul class="tags">
+					<?php foreach ( $tags as $glm_tag ) : ?>
+						<li><?php echo esc_html( $glm_tag ); ?></li>
+					<?php endforeach; ?>
+				</ul>
 			<?php endif; ?>
-			<span class="card__more">Voir la fiche</span>
+			<?php if ( $args['extrait'] ) : ?>
+				<?php $glm_extrait = wp_trim_words( wp_strip_all_tags( get_post_field( 'post_content', $post_id ) ), 28, '…' ); ?>
+				<?php if ( $glm_extrait ) : ?>
+					<p class="card2__extrait"><?php echo esc_html( $glm_extrait ); ?></p>
+				<?php endif; ?>
+				<span class="card2__plus">Voir la fiche</span>
+			<?php endif; ?>
 		</div>
 	</a>
 	<?php
@@ -305,6 +435,10 @@ function glm_modele_card( $post_id ) {
 
 /** Familles du catalogue, dans l'ordre choisi (réglage « glm_ordre » de chaque famille). */
 function glm_familles() {
+	static $terms = null;
+	if ( null !== $terms ) {
+		return $terms;
+	}
 	$terms = get_terms( array(
 		'taxonomy'   => 'famille',
 		'hide_empty' => false,
@@ -312,7 +446,8 @@ function glm_familles() {
 		'order'      => 'ASC',
 	) );
 	if ( is_wp_error( $terms ) ) {
-		return array();
+		$terms = array();
+		return $terms;
 	}
 	usort( $terms, function ( $a, $b ) {
 		$oa = (int) get_term_meta( $a->term_id, 'glm_ordre', true );
@@ -324,13 +459,38 @@ function glm_familles() {
 	return $terms;
 }
 
+/** Libellé « N modèle(s) ». */
+function glm_nb_modeles( $count ) {
+	$count = (int) $count;
+	return $count . ' modèle' . ( $count > 1 ? 's' : '' );
+}
+
+/**
+ * Petite famille, regroupée dans le catalogue (réglage « glm_compact » : 1 oui, 0 non).
+ * Sans réglage : les familles après les trois premières.
+ */
+function glm_famille_compacte( $term ) {
+	$reglage = get_term_meta( $term->term_id, 'glm_compact', true );
+	if ( '1' === $reglage || '0' === $reglage ) {
+		return '1' === $reglage;
+	}
+	$ids = wp_list_pluck( glm_familles(), 'term_id' );
+	$pos = array_search( $term->term_id, $ids, true );
+	return false !== $pos && $pos >= 3;
+}
+
 /** Thèmes utilisés par au moins un contenu du type donné. */
 function glm_themes( $post_type ) {
+	static $cache = array();
+	if ( isset( $cache[ $post_type ] ) ) {
+		return $cache[ $post_type ];
+	}
 	$terms = get_terms( array( 'taxonomy' => 'theme_glm', 'hide_empty' => false, 'orderby' => 'name' ) );
 	if ( is_wp_error( $terms ) ) {
+		$cache[ $post_type ] = array();
 		return array();
 	}
-	return array_values( array_filter( $terms, function ( $term ) use ( $post_type ) {
+	$cache[ $post_type ] = array_values( array_filter( $terms, function ( $term ) use ( $post_type ) {
 		return (bool) get_posts( array(
 			'post_type'      => $post_type,
 			'posts_per_page' => 1,
@@ -338,37 +498,76 @@ function glm_themes( $post_type ) {
 			'tax_query'      => array( array( 'taxonomy' => 'theme_glm', 'terms' => $term->term_id ) ),
 		) );
 	} ) );
+	return $cache[ $post_type ];
 }
 
-/** Encadré sous la fiche : personnalisation (sujets roulants et volants) ou options (Noël). */
+/** Un sujet de Noël (revendu par GLM, non personnalisable). */
+function glm_est_noel( $post_id ) {
+	return has_term( 'noel', 'theme_glm', $post_id );
+}
+
+/**
+ * Encadré de la fiche : personnalisation (sujets roulants et volants) ou options (Noël).
+ * Renvoie array( 'type' => 'perso'|'noel', 'titre', 'texte', 'note' ) ou un tableau vide.
+ */
+function glm_modele_perso( $post_id, $famille ) {
+	if ( glm_est_noel( $post_id ) ) {
+		return array( 'type' => 'noel', 'titre' => glm_t( 'noel_fiche_titre' ), 'texte' => glm_t( 'noel_fiche_texte' ), 'note' => '' );
+	}
+	if ( $famille && in_array( $famille->slug, array( 'sujets-roulants', 'sujets-volants' ), true ) ) {
+		return array(
+			'type'  => 'perso',
+			'titre' => glm_t( 'perso_titre' ),
+			'texte' => glm_t( 'perso_fiche_texte' ),
+			'note'  => 'sujets-volants' === $famille->slug ? glm_t( 'perso_fiche_volant' ) : '',
+		);
+	}
+	return array();
+}
+
+/** Ancien encadré sous forme de texte (compatibilité). */
 function glm_modele_encart( $post_id, $famille ) {
-	if ( has_term( 'noel', 'theme_glm', $post_id ) ) {
-		return '<strong>Options.</strong> Bruiteur, marche et éclairage peuvent être ajoutés à ce sujet.';
-	}
-	if ( $famille && 'sujets-volants' === $famille->slug ) {
-		return '<strong>Personnalisable.</strong> Couleurs au choix, décor peint ou covering. Le parallélogramme est fourni par le client.';
-	}
-	if ( $famille && 'sujets-roulants' === $famille->slug ) {
-		return '<strong>Personnalisable.</strong> Couleurs au choix, décor peint ou covering.';
-	}
-	return '';
+	$perso = glm_modele_perso( $post_id, $famille );
+	return $perso ? '<strong>' . esc_html( $perso['titre'] ) . '.</strong> ' . esc_html( trim( $perso['texte'] . ' ' . $perso['note'] ) ) : '';
 }
 
-/** Image représentant une famille : celle de son modèle le plus récent. */
-function glm_famille_image( $term, $size = 'glm-carte', $alt = null ) {
+/** Identifiant de la photo d'une famille : celle choisie dans l'admin (Catalogue > Familles), sinon celle d'un de ses modèles. */
+function glm_famille_image_id( $term ) {
+	$id = absint( get_term_meta( $term->term_id, 'glm_image', true ) );
+	if ( $id && wp_attachment_is_image( $id ) ) {
+		return $id;
+	}
+	// Sans photo choisie : celle du premier modèle de la famille (ordre alphabétique) qui en a une.
 	$posts = get_posts( array(
 		'post_type'      => 'modele',
 		'posts_per_page' => 1,
 		'meta_key'       => '_thumbnail_id',
+		'orderby'        => 'title',
+		'order'          => 'ASC',
 		'tax_query'      => array( array( 'taxonomy' => 'famille', 'terms' => $term->term_id ) ),
 		'fields'         => 'ids',
 	) );
-	return $posts ? get_the_post_thumbnail( $posts[0], $size, array( 'loading' => 'lazy', 'alt' => null === $alt ? $term->name : $alt ) ) : '';
+	return $posts ? (int) get_post_thumbnail_id( $posts[0] ) : 0;
 }
 
-/** Bandeau rouge « Demander un devis ». */
-function glm_cta( $titre = 'Un projet, une réparation, une rénovation ?', $texte = 'Décrivez votre besoin, nous revenons vers vous avec un devis.' ) {
-	$tel = glm_opt( 'telephone' );
+/** Image représentant une famille. */
+function glm_famille_image( $term, $size = 'glm-carte', $alt = null, $sizes = '' ) {
+	$id = glm_famille_image_id( $term );
+	if ( ! $id ) {
+		return '';
+	}
+	$attrs = array( 'loading' => 'lazy', 'alt' => null === $alt ? $term->name : $alt );
+	if ( $sizes ) {
+		$attrs['sizes'] = $sizes;
+	}
+	return wp_get_attachment_image( $id, $size, false, $attrs );
+}
+
+/** Bandeau rouge « Demander un devis ». Sans argument : textes du réglage « Bandeau rouge ». */
+function glm_cta( $titre = null, $texte = null ) {
+	$tel   = glm_opt( 'telephone' );
+	$titre = null === $titre ? glm_t( 'cta_titre' ) : $titre;
+	$texte = null === $texte ? glm_t( 'cta_texte' ) : $texte;
 	?>
 	<section class="cta">
 		<div class="container cta__grid">
@@ -387,18 +586,25 @@ function glm_cta( $titre = 'Un projet, une réparation, une rénovation ?', $tex
 	<?php
 }
 
+/** Fil d'Ariane : array( libellé => url ), le dernier élément sans lien. */
+function glm_fil( $fil, $courant ) {
+	?>
+	<nav class="fil" aria-label="Fil d'Ariane">
+		<a href="<?php echo esc_url( home_url( '/' ) ); ?>">Accueil</a>
+		<?php foreach ( $fil as $label => $url ) : ?>
+			/ <a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $label ); ?></a>
+		<?php endforeach; ?>
+		/ <span aria-current="page"><?php echo esc_html( $courant ); ?></span>
+	</nav>
+	<?php
+}
+
 /** En-tête gris des pages intérieures. */
 function glm_page_hero( $titre, $intro = '', $fil = array() ) {
 	?>
 	<section class="page-hero">
 		<div class="container">
-			<nav class="fil" aria-label="Fil d'Ariane">
-				<a href="<?php echo esc_url( home_url( '/' ) ); ?>">Accueil</a>
-				<?php foreach ( $fil as $label => $url ) : ?>
-					/ <a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $label ); ?></a>
-				<?php endforeach; ?>
-				/ <?php echo esc_html( $titre ); ?>
-			</nav>
+			<?php glm_fil( $fil, $titre ); ?>
 			<h1 class="display display--l"><?php echo esc_html( $titre ); ?></h1>
 			<?php if ( $intro ) : ?>
 				<p class="page-hero__lead"><?php echo esc_html( $intro ); ?></p>
@@ -409,17 +615,22 @@ function glm_page_hero( $titre, $intro = '', $fil = array() ) {
 }
 
 /** Image d'un réglage (identifiant de média) ou image de repli du thème. */
-function glm_image_opt( $key, $fallback_asset, $alt, $size = 'glm-large' ) {
+function glm_image_opt( $key, $fallback_asset, $alt, $size = 'glm-large', $attrs = array() ) {
 	$id = absint( get_theme_mod( 'glm_' . $key ) );
 	if ( $id ) {
 		$own  = (string) get_post_meta( $id, '_wp_attachment_image_alt', true );
-		$html = wp_get_attachment_image( $id, $size, false, array( 'alt' => '' !== $own ? $own : $alt ) );
+		$html = wp_get_attachment_image( $id, $size, false, array_merge( array( 'alt' => '' !== $own ? $own : $alt ), $attrs ) );
 		if ( $html ) {
 			return $html;
 		}
 	}
 	if ( $fallback_asset ) {
-		return '<img src="' . esc_url( glm_asset( $fallback_asset ) ) . '" alt="' . esc_attr( $alt ) . '" loading="lazy">';
+		$loading = isset( $attrs['loading'] ) ? $attrs['loading'] : 'lazy';
+		$extra   = isset( $attrs['fetchpriority'] ) ? ' fetchpriority="' . esc_attr( $attrs['fetchpriority'] ) . '"' : '';
+		$path    = get_template_directory() . '/assets/' . $fallback_asset;
+		$dims    = file_exists( $path ) ? getimagesize( $path ) : false;
+		$wh      = $dims ? sprintf( ' width="%d" height="%d"', $dims[0], $dims[1] ) : '';
+		return '<img src="' . esc_url( glm_asset( $fallback_asset ) ) . '" alt="' . esc_attr( $alt ) . '"' . $wh . ' loading="' . esc_attr( $loading ) . '"' . $extra . ' decoding="async">';
 	}
 	return '';
 }
@@ -440,14 +651,4 @@ add_action( 'pre_get_posts', function ( $query ) {
 	if ( $query->is_post_type_archive( array( 'modele', 'realisation' ) ) || $query->is_tax( 'famille' ) ) {
 		$query->set( 'posts_per_page', -1 );
 	}
-} );
-
-// Titres d'onglet plus propres pour les archives.
-add_filter( 'document_title_parts', function ( $parts ) {
-	if ( is_post_type_archive( 'modele' ) ) {
-		$parts['title'] = 'Catalogue';
-	} elseif ( is_post_type_archive( 'realisation' ) ) {
-		$parts['title'] = 'Réalisations';
-	}
-	return $parts;
 } );

@@ -4,7 +4,7 @@
  */
 get_header();
 
-glm_page_hero( is_search() ? 'Recherche' : ( is_home() ? 'Actualités' : wp_strip_all_tags( get_the_archive_title() ) ) );
+glm_page_hero( is_search() ? 'Recherche' : ( is_singular() ? get_the_title() : ( is_home() ? 'Actualités' : wp_strip_all_tags( get_the_archive_title() ) ) ) );
 ?>
 <section class="section">
 	<div class="container">

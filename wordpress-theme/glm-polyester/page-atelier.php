@@ -1,27 +1,31 @@
 <?php
 /**
  * Page L'atelier (page dont l'identifiant est « atelier »).
- * Le texte de présentation se modifie dans l'éditeur de la page.
+ * Le texte de présentation se modifie dans l'éditeur de la page ;
+ * les autres textes dans Apparence > Personnaliser > GLM Polyester > Page L'atelier et étapes.
  */
 get_header();
 
-glm_page_hero( 'L\'atelier', 'GLM Polyester est un atelier de construction de manèges installé à Breteuil, dans l\'Oise.' );
+glm_page_hero( get_the_title() ? get_the_title() : 'L\'atelier', glm_t( 'atelier_intro' ) );
 
 $glm_experience = glm_opt( 'experience' );
-$glm_etapes     = array(
-	array( 'Choix du modèle et moulage', 'Le client choisit son modèle, puis la pièce est moulée.', glm_image_opt( 'img_etape_1', '', 'Moule d\'une pièce de manège', 'glm-carte' ), 'Photo à venir : moule ou modèle' ),
-	array( 'Thermoformage', 'Les pièces plastiques sont formées à chaud sur leur moule.', glm_image_opt( 'img_etape_2', '', 'Pièce thermoformée', 'glm-carte' ), 'Photo à venir : thermoformage' ),
-	array( 'Peinture et éclairage', 'Décor peint ou covering, puis pose de l\'éclairage.', glm_image_opt( 'img_etape_3', 'img/traineau-serre.jpg', 'Détail d\'un traîneau peint et éclairé', 'glm-carte' ), 'Photo à venir' ),
-);
+$glm_etapes     = array();
+foreach ( array( 1 => 'Moule d\'une pièce de manège', 2 => 'Pièce thermoformée', 3 => 'Détail d\'un traîneau peint et éclairé' ) as $glm_i => $glm_alt ) {
+	$glm_etapes[ $glm_i ] = array(
+		glm_t( 'etape_' . $glm_i . '_titre' ),
+		glm_t( 'etape_' . $glm_i . '_texte' ),
+		glm_image_opt( 'img_etape_' . $glm_i, 3 === $glm_i ? 'img/traineau-serre.jpg' : '', $glm_alt, 'glm-carte', array( 'sizes' => '(min-width: 1240px) 390px, (min-width: 640px) 33vw, 100vw' ) ),
+	);
+}
 ?>
 
 <section class="section">
 	<div class="container split">
 		<div class="split__media slant slant--large reveal">
-			<?php echo glm_image_opt( 'img_atelier', 'img/traineau.jpg', 'Vue de l\'atelier : établis, outillage et un traîneau de manège terminé' ); // phpcs:ignore ?>
+			<?php echo glm_image_opt( 'img_atelier', 'img/traineau.jpg', 'Vue de l\'atelier : établis, outillage et un traîneau de manège terminé', 'glm-large', array( 'sizes' => '(min-width: 1240px) 640px, (min-width: 1024px) 52vw, 100vw' ) ); // phpcs:ignore ?>
 		</div>
 		<div class="split__text reveal">
-			<h2 class="display display--m">Un savoir-faire de constructeur</h2>
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'atelier_titre' ) ); ?></h2>
 			<div class="contenu">
 				<?php
 				while ( have_posts() ) {
@@ -37,16 +41,17 @@ $glm_etapes     = array(
 <section class="section section--sombre">
 	<div class="container">
 		<div class="section-head reveal">
-			<div class="section-head__titles">
-				<p class="eyebrow">Fabrication</p>
-				<h2 class="display display--m">De la forme brute à la pièce finie</h2>
-			</div>
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'etapes_titre' ) ); ?></h2>
 		</div>
 		<ol class="etapes-photos">
 			<?php foreach ( $glm_etapes as $glm_index => $glm_etape ) : ?>
 				<li class="reveal">
-					<div class="etapes-photos__media"><?php echo $glm_etape[2] ? $glm_etape[2] : glm_placeholder( $glm_etape[3] ); // phpcs:ignore ?></div>
-					<div class="etapes-photos__titre"><span><?php echo esc_html( sprintf( '%02d', $glm_index + 1 ) ); ?></span><strong><?php echo esc_html( $glm_etape[0] ); ?></strong></div>
+					<?php if ( $glm_etape[2] ) : ?>
+						<div class="etapes-photos__media"><?php echo $glm_etape[2]; // phpcs:ignore ?></div>
+					<?php else : ?>
+						<div class="etapes-photos__media etapes-photos__media--chiffre" aria-hidden="true"><span><?php echo esc_html( sprintf( '%02d', $glm_index ) ); ?></span></div>
+					<?php endif; ?>
+					<div class="etapes-photos__titre"><span><?php echo esc_html( sprintf( '%02d', $glm_index ) ); ?></span><strong><?php echo esc_html( $glm_etape[0] ); ?></strong></div>
 					<p><?php echo esc_html( $glm_etape[1] ); ?></p>
 				</li>
 			<?php endforeach; ?>
@@ -57,8 +62,8 @@ $glm_etapes     = array(
 <section class="section">
 	<div class="container chiffres">
 		<div class="reveal">
-			<strong>Breteuil</strong>
-			<p>Atelier situé dans l'Oise, <?php echo esc_html( glm_opt( 'adresse_1', '46 rue de Montdidier' ) ); ?>.</p>
+			<strong><?php echo esc_html( glm_t( 'chiffre_lieu_titre' ) ); ?></strong>
+			<p><?php echo esc_html( glm_t( 'chiffre_lieu_texte' ) ); ?></p>
 		</div>
 		<?php if ( $glm_experience ) : ?>
 			<div class="reveal">
@@ -67,8 +72,8 @@ $glm_etapes     = array(
 			</div>
 		<?php endif; ?>
 		<div class="reveal">
-			<strong>5 métiers</strong>
-			<p>Fabrication, personnalisation, thermoformage, réparation et rénovation.</p>
+			<strong><?php echo esc_html( glm_t( 'chiffre_metiers_titre' ) ); ?></strong>
+			<p><?php echo esc_html( glm_t( 'chiffre_metiers_texte' ) ); ?></p>
 		</div>
 	</div>
 </section>
