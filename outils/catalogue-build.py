@@ -17,6 +17,8 @@ roulants = [s for s in sujets if s["famille"] == "sujets-roulants"]
 
 FAMILLES = {"sujets-volants": "Sujet volant", "sujets-roulants": "Sujet roulant"}
 ADRESSE = "46 rue de Montdidier · 60120 Breteuil"
+TELEPHONE = "07 60 16 26 39"
+EMAIL = "contact@glm-polyester.com"
 e = html.escape
 
 
@@ -103,7 +105,7 @@ body { font-family:"Barlow", Arial, sans-serif; color:var(--encre); font-size:10
 
 def pied(num):
     return (f'<div class="pied"><img src="{(THEME / "img" / "logo-glm.png").as_uri()}" alt="GLM Polyester">'
-            f'<span><b>GLM Polyester</b> · {ADRESSE}</span><span>{num}</span></div>')
+            f'<span><b>GLM Polyester</b> · {ADRESSE} · {TELEPHONE} · {EMAIL}</span><span>{num}</span></div>')
 
 
 def page_sujet(s, num):
@@ -122,7 +124,7 @@ def page_sujet(s, num):
 <section class="page"><div class="fiche">
   <div class="fiche__photo"><img src="{photo}" alt="{e(s['nom'])}"></div>
   <div class="fiche__infos">
-    <div class="fiche__tete"><span class="eyebrow">{FAMILLES[s['famille']]}</span><span class="badge">Sujet GLM</span></div>
+    <div class="fiche__tete"><span class="eyebrow">{FAMILLES[s['famille']]}</span></div>
     <h2 class="titre">{e(s['nom'])}</h2>
     <div class="carac">{carac_html}</div>
     <h3 class="sous-titre">Construction</h3>
@@ -150,8 +152,8 @@ couverture = f"""
       <p class="eyebrow" style="color:var(--jaune);margin-bottom:4mm">Catalogue</p>
       <h1 class="titre">Sujets<br>de manège<br><span>volants et roulants</span></h1>
     </div>
-    <p>{len(volants)} sujets volants et {len(roulants)} sujets roulants, fabriqués en polyester dans notre atelier.</p>
-    <div class="couv__adr">GLM Polyester · {ADRESSE}</div>
+    <p>Des sujets fabriqués en polyester dans notre atelier de Breteuil, dans l'Oise.</p>
+    <div class="couv__adr">GLM Polyester · {ADRESSE}<br>{TELEPHONE} · {EMAIL}</div>
   </div>
   <div class="couv__droite"><img src="{(FICHES / 'photos-pdf' / 'spacio.jpg').as_uri()}" alt="Sujet volant Spacio"></div>
 </section>"""
@@ -182,8 +184,8 @@ dos = f"""
   <p>Fabrication, personnalisation, réparation et rénovation de manèges, de sujets et de pièces en polyester.</p>
   <div class="dos__contact">
     <div><small>Atelier</small><strong>{ADRESSE}</strong></div>
-    <div><small>Téléphone</small><strong>[À COMPLÉTER]</strong></div>
-    <div><small>E-mail</small><strong>[À COMPLÉTER]</strong></div>
+    <div><small>Téléphone</small><strong>{TELEPHONE}</strong></div>
+    <div><small>E-mail</small><strong>{EMAIL}</strong></div>
   </div>
 </section>"""
 
@@ -193,7 +195,7 @@ html_path = BASE / "catalogue" / "catalogue.html"
 html_path.write_text(doc, encoding="utf-8")
 
 with sync_playwright() as p:
-    browser = p.chromium.launch()
+    browser = p.chromium.launch(executable_path=sys.argv[3] if len(sys.argv) > 3 else None)
     page = browser.new_page()
     page.goto(html_path.as_uri(), wait_until="networkidle")
     page.evaluate("document.fonts.ready")
