@@ -87,7 +87,7 @@ function glm_install() {
 	glm_ensure_page(
 		'mentions-legales',
 		'Mentions légales',
-		"<h2>Éditeur du site</h2>\n<p>GLM Polyester, société par actions simplifiée au capital de 5 000 €.<br>Siège social : 46 rue de Montdidier, 60120 Breteuil.<br>RCS Beauvais 977 989 318. SIRET 977 989 318 00026.<br>TVA intracommunautaire : FR42977989318.</p>\n<p>Directeur de la publication : [NOM À COMPLÉTER].<br>Contact : [TÉLÉPHONE ET E-MAIL À COMPLÉTER].</p>\n<h2>Hébergement</h2>\n<p>[NOM, ADRESSE ET TÉLÉPHONE DE L'HÉBERGEUR À COMPLÉTER]</p>\n<h2>Propriété intellectuelle</h2>\n<p>Les textes, photos et modèles présentés sur ce site sont la propriété de GLM Polyester. Toute reproduction sans autorisation est interdite.</p>"
+		"<h2>Éditeur du site</h2>\n<p>GLM Polyester, société par actions simplifiée au capital de 5 000 €.<br>Siège social : 46 rue de Montdidier, 60120 Breteuil.<br>RCS Beauvais 977 989 318. SIRET 977 989 318 00026.<br>TVA intracommunautaire : FR42977989318.</p>\n<p>Directeur de la publication : [NOM À COMPLÉTER].<br>Contact : [TÉLÉPHONE ET E-MAIL À COMPLÉTER].</p>\n<h2>Hébergement</h2>\n<p>Le site est hébergé par OVH SAS, au capital de 50 000 000 €, RCS Lille Métropole 424 761 419 00045.<br>Siège social : 2 rue Kellermann, 59100 Roubaix, France.<br>Téléphone : 1007. Site : <a href=\"https://www.ovhcloud.com/fr/\">www.ovhcloud.com</a></p>\n<h2>Propriété intellectuelle</h2>\n<p>Les textes, photos et modèles présentés sur ce site sont la propriété de GLM Polyester. Toute reproduction sans autorisation est interdite.</p>"
 	);
 	$confidentialite = glm_ensure_page( 'politique-de-confidentialite', 'Politique de confidentialité', glm_texte_confidentialite() );
 
@@ -209,6 +209,10 @@ function glm_install() {
 	$wp_rewrite->set_permalink_structure( '/%postname%/' );
 	flush_rewrite_rules();
 
+	glm_creer_pages_services();
+	update_option( 'glm_services_pages_v1', 1 );
+	update_option( 'glm_services_textes_v2', 1 );
+	update_option( 'glm_mentions_ovh_v1', 1 );
 	update_option( 'glm_installed', GLM_VERSION );
 }
 
@@ -241,4 +245,110 @@ add_action( 'admin_init', function () {
 		update_option( 'wp_page_for_privacy_policy', $page->ID );
 	}
 	update_option( 'glm_confidentialite_v1', 1 );
+} );
+
+/** Texte court des pages des services (version 1), gardé pour savoir si une page a été modifiée depuis sa création. */
+function glm_texte_service( $slug ) {
+	$p  = function ( $texte ) {
+		return "<!-- wp:paragraph -->\n<p>" . $texte . "</p>\n<!-- /wp:paragraph -->\n\n";
+	};
+	$h2 = function ( $texte ) {
+		return "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">" . $texte . "</h2>\n<!-- /wp:heading -->\n\n";
+	};
+	$ul = function ( $items, $ordered = false ) {
+		$tag  = $ordered ? 'ol' : 'ul';
+		$html = $ordered ? "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">" : "<!-- wp:list -->\n<ul class=\"wp-block-list\">";
+		foreach ( $items as $item ) {
+			$html .= "<!-- wp:list-item -->\n<li>" . $item . "</li>\n<!-- /wp:list-item -->";
+		}
+		return $html . '</' . $tag . ">\n<!-- /wp:list -->\n\n";
+	};
+	switch ( $slug ) {
+		case 'fabrication':
+			return $p( 'GLM Polyester fabrique dans son atelier de Breteuil des manèges, des sujets roulants et volants et des pièces en polyester, à partir des modèles de son catalogue.' )
+				. $h2( 'Ce que nous fabriquons' )
+				. $ul( array( 'Manèges complets', 'Sujets roulants : voitures, camions, motos, bateaux…', 'Sujets volants : hélicoptères et autres sujets du catalogue', 'Pièces en polyester : caisses, carénages, éléments de décor', 'Pièces thermoformées : cabochons, optiques, caches' ) )
+				. $h2( 'À partir de votre moule' )
+				. $p( 'Vous avez votre propre moule ? Nous pouvons aussi réaliser vos pièces à partir de celui-ci.' )
+				. $h2( 'Couleurs et décor' )
+				. $p( 'Les sujets roulants et volants sont personnalisables : couleurs au choix, décor peint ou covering.' );
+		case 'personnalisable':
+			return $p( 'Les sujets roulants et volants du catalogue se personnalisent. Vous choisissez le modèle, nous l\'habillons à vos couleurs.' )
+				. $h2( 'Les possibilités' )
+				. $ul( array( 'Couleurs : teintes unies, en dégradé ou pailletées', 'Décor peint : motifs, noms et numéros peints à la main ou à l\'aérographe', 'Covering : un film imprimé à vos couleurs', 'Éclairage : leds et feux intégrés au sujet' ) )
+				. $h2( 'Sujets volants' )
+				. $p( 'Pour les sujets volants, le parallélogramme est fourni par le client.' )
+				. $h2( 'Sujets de Noël' )
+				. $p( 'Pour les sujets de Noël, nous ajoutons bruiteur, marche et éclairage.' );
+		case 'thermoformage':
+			return $p( 'Le thermoformage consiste à chauffer une plaque de plastique, puis à la former sur un moule. Nous réalisons ainsi des pièces pour les sujets et les manèges.' )
+				. $h2( 'Nos pièces thermoformées' )
+				. $ul( array( 'Cabochons d\'éclairage de couleur', 'Feux et optiques', 'Caches et carénages', 'Pièces diverses pour sujets et manèges' ) )
+				. $p( 'Les pièces disponibles sont présentées dans le catalogue. Pour une autre pièce, envoyez-nous une photo et ses dimensions.' );
+		case 'reparation':
+			return $p( 'Nous réparons les sujets, les pièces en polyester et les manèges, quel que soit leur fabricant.' )
+				. $h2( 'Ce que nous réparons' )
+				. $ul( array( 'Sujets et pièces en polyester cassés ou fissurés', 'Pièces usées à remplacer', 'Sujets et manèges de toutes marques' ) )
+				. $h2( 'Commencez par une photo' )
+				. $p( 'Envoyez-nous des photos de la pièce avec le formulaire de devis : nous vous disons ce qui est possible et nous chiffrons la réparation.' );
+		case 'renovation':
+			return $p( 'Un sujet ou un manège ancien n\'est pas forcément à remplacer : il peut être remis à neuf, avec un nouveau décor si vous le souhaitez.' )
+				. $h2( 'Les étapes d\'une rénovation' )
+				. $ul( array( 'Examen du sujet ou du manège, sur photos ou à l\'atelier', 'Reprise de la structure et du polyester', 'Nouvelle peinture et nouveau décor', 'Éclairage modernisé' ), true );
+	}
+	return '';
+}
+
+/** Crée les pages détaillées des services (enfants de la page « Services ») qui n'existent pas encore. */
+function glm_creer_pages_services() {
+	$parent = get_page_by_path( 'services' );
+	if ( ! $parent ) {
+		return;
+	}
+	$ordre = 1;
+	foreach ( glm_services() as $slug => $titre ) {
+		if ( ! get_page_by_path( 'services/' . $slug ) ) {
+			wp_insert_post( array(
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_parent'  => $parent->ID,
+				'post_name'    => $slug,
+				'post_title'   => $titre,
+				'post_content' => wp_slash( glm_texte_service_v2( $slug ) ),
+				'menu_order'   => $ordre,
+			) );
+		}
+		$ordre++;
+	}
+}
+
+// Une seule fois, à la prochaine visite d'un administrateur : pages détaillées des services.
+add_action( 'admin_init', function () {
+	if ( get_option( 'glm_services_pages_v1' ) || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	update_option( 'glm_services_pages_v1', 1 );
+	glm_creer_pages_services();
+} );
+
+// Une seule fois : hébergeur (OVH) dans les mentions légales, seulement si le texte à compléter est encore là.
+add_action( 'admin_init', function () {
+	if ( get_option( 'glm_mentions_ovh_v1' ) || ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	update_option( 'glm_mentions_ovh_v1', 1 );
+	$page = get_page_by_path( 'mentions-legales' );
+	if ( ! $page ) {
+		return;
+	}
+	$ovh     = 'Le site est hébergé par OVH SAS, au capital de 50 000 000 €, RCS Lille Métropole 424 761 419 00045.<br>Siège social : 2 rue Kellermann, 59100 Roubaix, France.<br>Téléphone : 1007. Site : <a href="https://www.ovhcloud.com/fr/">www.ovhcloud.com</a>';
+	$contenu = str_replace(
+		array( '[NOM, ADRESSE ET TÉLÉPHONE DE L\'HÉBERGEUR À COMPLÉTER]', '[NOM, ADRESSE ET TÉLÉPHONE DE L’HÉBERGEUR À COMPLÉTER]' ),
+		$ovh,
+		$page->post_content,
+		$fois
+	);
+	if ( $fois ) {
+		wp_update_post( wp_slash( array( 'ID' => $page->ID, 'post_content' => $contenu ) ) );
+	}
 } );

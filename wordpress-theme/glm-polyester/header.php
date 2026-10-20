@@ -31,6 +31,7 @@
 	<nav class="mobile-nav" id="menu-mobile" aria-label="Menu mobile">
 		<div class="container">
 			<?php glm_nav_list( 'mobile' ); ?>
+			<a class="btn btn--rouge mobile-nav__devis" href="<?php echo esc_url( glm_page_url( 'contact' ) . '#formulaire' ); ?>">Demander un devis</a>
 		</div>
 	</nav>
 </header>

@@ -70,6 +70,9 @@ function glm_seo_description() {
 		$d = glm_t( 'seo_catalogue' );
 		return glm_seo_court( 'Feuilletez le catalogue des sujets de manège de GLM Polyester. ' . ( $d ? $d : glm_t( 'catalogue_intro' ) ) );
 	}
+	if ( glm_service_courant() ) {
+		return glm_seo_court( glm_t( 'service_' . glm_service_courant() . '_texte' ) );
+	}
 	foreach ( array( 'services', 'atelier', 'contact' ) as $slug ) {
 		if ( is_page( $slug ) ) {
 			$d = glm_t( 'seo_' . $slug );
@@ -133,6 +136,10 @@ add_filter( 'document_title_parts', function ( $parts ) {
 		$parts['title'] = $theme ? 'Thème ' . $theme->name . ' – Catalogue' : 'Catalogue';
 	} elseif ( is_post_type_archive( 'realisation' ) ) {
 		$parts['title'] = 'Réalisations';
+	} elseif ( glm_service_courant() && ! glm_seo_extension() ) {
+		$parts['title'] = glm_t( 'seo_titre_' . glm_service_courant() );
+	} elseif ( ( is_page( 'services' ) || is_page( 'atelier' ) ) && ! glm_seo_extension() ) {
+		$parts['title'] = glm_t( 'seo_titre_' . ( is_page( 'services' ) ? 'services' : 'atelier' ) );
 	} elseif ( is_singular( 'modele' ) && ! glm_seo_extension() ) {
 		$famille = glm_seo_famille( get_queried_object_id() );
 		if ( $famille ) {
@@ -245,6 +252,9 @@ function glm_schema_fil() {
 		if ( is_page( 'feuilleter-le-catalogue' ) ) {
 			$fil[] = array( 'Catalogue', glm_catalogue_url() );
 		}
+		if ( glm_service_courant() ) {
+			$fil[] = array( 'Services', glm_page_url( 'services' ) );
+		}
 		$fil[] = array( get_the_title( get_queried_object_id() ), get_permalink( get_queried_object_id() ) );
 	}
 	return count( $fil ) > 1 ? $fil : array();
@@ -307,6 +317,33 @@ add_action( 'wp_head', function () {
 	if ( is_singular( 'modele' ) ) {
 		$graph[] = glm_schema_produit( get_queried_object_id() );
 	}
+	$service = glm_service_courant();
+	if ( $service ) {
+		$graph[] = array(
+			'@type'       => 'Service',
+			'name'        => get_the_title( get_queried_object_id() ),
+			'description' => glm_t( 'service_' . $service . '_texte' ),
+			'url'         => get_permalink( get_queried_object_id() ),
+			'provider'    => array( '@id' => home_url( '/#entreprise' ) ),
+			'areaServed'  => 'FR',
+		);
+		$questions = array();
+		foreach ( glm_service_faq( $service ) as $qr ) {
+			$questions[] = array( '@type' => 'Question', 'name' => $qr[0], 'acceptedAnswer' => array( '@type' => 'Answer', 'text' => $qr[1] ) );
+		}
+		if ( $questions ) {
+			$graph[] = array( '@type' => 'FAQPage', 'mainEntity' => $questions );
+		}
+	}
+	if ( is_page( 'atelier' ) ) {
+		$questions = array();
+		foreach ( glm_faq( 'atelier_faq' ) as $qr ) {
+			$questions[] = array( '@type' => 'Question', 'name' => $qr[0], 'acceptedAnswer' => array( '@type' => 'Answer', 'text' => $qr[1] ) );
+		}
+		if ( $questions ) {
+			$graph[] = array( '@type' => 'FAQPage', 'mainEntity' => $questions );
+		}
+	}
 	$fil = glm_schema_fil();
 	if ( $fil ) {
 		$items = array();
@@ -344,7 +381,7 @@ add_filter( 'wp_sitemaps_add_provider', function ( $provider, $name ) {
 add_filter( 'wp_sitemaps_posts_query_args', function ( $args, $post_type ) {
 	if ( 'page' === $post_type ) {
 		$exclure = array();
-		foreach ( array( 'page-d-exemple', 'sample-page' ) as $slug ) {
+		foreach ( array_merge( array( 'page-d-exemple', 'sample-page' ), glm_feuilleter_actif() ? array() : array( 'feuilleter-le-catalogue' ) ) as $slug ) {
 			$page = get_page_by_path( $slug );
 			if ( $page ) {
 				$exclure[] = $page->ID;

@@ -170,6 +170,25 @@ function glm_run_import() {
 		}
 	}
 
+	// Thème ajouté (sans retirer les autres) à toutes les réalisations de certains types.
+	// Exemple : "theme_par_type": { "personnalisation": [ "sujets", "decors" ] }.
+	foreach ( (array) ( isset( $data['theme_par_type'] ) ? $data['theme_par_type'] : array() ) as $slug => $types_cibles ) {
+		$theme = get_term_by( 'slug', $slug, 'theme_glm' );
+		if ( ! $theme ) {
+			continue;
+		}
+		$cibles = get_posts( array(
+			'post_type'      => 'realisation',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'post_status'    => 'any',
+			'tax_query'      => array( array( 'taxonomy' => 'type_realisation', 'field' => 'slug', 'terms' => (array) $types_cibles ) ),
+		) );
+		foreach ( $cibles as $cible ) {
+			wp_set_object_terms( $cible, array( (int) $theme->term_id ), 'theme_glm', true );
+		}
+	}
+
 	// Noms des types de réalisation existants.
 	foreach ( (array) ( isset( $data['rename_types'] ) ? $data['rename_types'] : array() ) as $slug => $name ) {
 		$term = get_term_by( 'slug', $slug, 'type_realisation' );
@@ -239,9 +258,21 @@ function glm_run_import() {
 	}
 
 	// Réalisations : la première du manifeste apparaît en premier dans la galerie.
+	// Avec « realisations_a_la_suite », elles se placent après les réalisations déjà en ligne.
 	$items = isset( $data['realisations'] ) ? $data['realisations'] : array();
 	$now   = time();
+	if ( ! empty( $data['realisations_a_la_suite'] ) ) {
+		$plus_ancienne = get_posts( array( 'post_type' => 'realisation', 'posts_per_page' => 1, 'orderby' => 'date', 'order' => 'ASC', 'post_status' => 'any' ) );
+		if ( $plus_ancienne ) {
+			$now = (int) get_post_time( 'U', true, $plus_ancienne[0] ) - 60;
+		}
+	}
 	foreach ( $items as $index => $item ) {
+		$photo = $get( $item['file'], $item['alt'] );
+		// Photo déjà présente dans une réalisation : on ne la remet pas une seconde fois.
+		if ( $photo && get_posts( array( 'post_type' => 'realisation', 'posts_per_page' => 1, 'fields' => 'ids', 'post_status' => 'any', 'meta_key' => '_thumbnail_id', 'meta_value' => $photo ) ) ) { // phpcs:ignore
+			continue;
+		}
 		$id = wp_insert_post( array(
 			'post_type'   => 'realisation',
 			'post_status' => 'publish',
@@ -251,14 +282,19 @@ function glm_run_import() {
 		if ( ! $id || is_wp_error( $id ) ) {
 			continue;
 		}
-		$photo = $get( $item['file'], $item['alt'] );
 		if ( $photo ) {
 			set_post_thumbnail( $id, $photo );
 		}
 		update_post_meta( $id, '_glm_legende', $item['legende'] );
 		update_post_meta( $id, '_glm_large', ! empty( $item['large'] ) ? '1' : '' );
+		if ( ! empty( $item['licence'] ) ) {
+			update_post_meta( $id, '_glm_licence', '1' );
+		}
 		if ( isset( $types[ $item['type'] ] ) ) {
 			wp_set_object_terms( $id, array( $types[ $item['type'] ] ), 'type_realisation' );
+		}
+		if ( isset( $item['themes'] ) ) {
+			glm_set_themes( $id, $item['themes'] );
 		}
 	}
 

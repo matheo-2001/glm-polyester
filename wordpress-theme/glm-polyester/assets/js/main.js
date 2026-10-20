@@ -14,6 +14,23 @@
 		window.addEventListener('scroll', onScroll, { passive: true });
 	}
 
+	/* ----- Bouton « revenir en haut » ----- */
+	var hautPage = document.querySelector('.haut-page');
+	if (hautPage) {
+		var montrerHaut = function () {
+			hautPage.classList.toggle('is-visible', window.scrollY > window.innerHeight * 0.8);
+		};
+		montrerHaut();
+		window.addEventListener('scroll', montrerHaut, { passive: true });
+		hautPage.addEventListener('click', function (event) {
+			event.preventDefault();
+			window.scrollTo({ top: 0, behavior: reduit.matches ? 'auto' : 'smooth' });
+			// Le clavier repart du haut de la page.
+			var lien = document.querySelector('.site-logo');
+			if (lien) { lien.focus({ preventScroll: true }); }
+		});
+	}
+
 	/* ----- Menu mobile : panneau à hauteur d'écran, page bloquée derrière ----- */
 	var burger = document.querySelector('.burger');
 	var panel = document.getElementById('menu-mobile');
@@ -37,6 +54,14 @@
 		burger.addEventListener('click', function () {
 			setOpen(burger.getAttribute('aria-expanded') !== 'true');
 		});
+		// Le panneau est fixé sous l'en-tête : sa position suit l'en-tête si la page bouge (barre d'adresse, barre d'administration).
+		var recaler = function () {
+			if (burger.getAttribute('aria-expanded') === 'true') {
+				header.style.setProperty('--bas-entete', Math.max(0, Math.round(header.getBoundingClientRect().bottom)) + 'px');
+			}
+		};
+		window.addEventListener('scroll', recaler, { passive: true });
+		window.addEventListener('resize', recaler);
 		// Un lien (vers une ancre de la même page, par exemple) referme le menu.
 		panel.addEventListener('click', function (event) {
 			if (event.target.closest('a')) {
@@ -56,6 +81,28 @@
 		});
 	}
 
+	/* Sous-menu mobile : il s'ouvre et se ferme en douceur (hauteur animée). */
+	var deplier = function (el, open) {
+		if (reduit.matches) {
+			el.hidden = !open;
+			return;
+		}
+		clearTimeout(el._glmFin);
+		if (open) {
+			el.hidden = false;
+			var h = el.scrollHeight;
+			el.style.height = '0px';
+			el.offsetHeight; // eslint-disable-line no-unused-expressions
+			el.style.height = h + 'px';
+			el._glmFin = setTimeout(function () { el.style.height = ''; }, 320);
+		} else {
+			el.style.height = el.scrollHeight + 'px';
+			el.offsetHeight; // eslint-disable-line no-unused-expressions
+			el.style.height = '0px';
+			el._glmFin = setTimeout(function () { el.hidden = true; el.style.height = ''; }, 320);
+		}
+	};
+
 	/* ----- Menus déroulants (Catalogue, Services) ----- */
 	var subs = document.querySelectorAll('.has-sub');
 	var canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
@@ -67,7 +114,7 @@
 			btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 		}
 		if (target && target.classList.contains('mobile-sub')) {
-			target.hidden = !open;
+			deplier(target, open);
 		}
 	};
 	var closeOthers = function (keep) {
@@ -144,60 +191,10 @@
 		});
 	}
 
-	/* ----- Catalogue : la barre des familles suit la section affichée ----- */
-	var barre = document.querySelector('.barre-familles');
-	var ancres = barre ? barre.querySelectorAll('a[data-ancre]') : [];
-	if (ancres.length && 'IntersectionObserver' in window) {
-		var tout = barre.querySelector('a:not([data-ancre])');
-		var activer = function (lien) {
-			barre.querySelectorAll('a').forEach(function (a) {
-				if (a === lien) {
-					a.setAttribute('aria-current', 'true');
-				} else {
-					a.removeAttribute('aria-current');
-				}
-			});
-			if (lien && lien.scrollIntoView && lien.parentNode.scrollWidth > lien.parentNode.clientWidth) {
-				var conteneur = lien.parentNode;
-				var gauche = lien.offsetLeft - (conteneur.clientWidth - lien.offsetWidth) / 2;
-				conteneur.scrollTo({ left: gauche, behavior: reduit.matches ? 'auto' : 'smooth' });
-			}
-		};
-		var sections = [];
-		ancres.forEach(function (a) {
-			var cible = document.getElementById(a.getAttribute('href').slice(1));
-			if (cible) {
-				sections.push({ lien: a, cible: cible });
-			}
-		});
-		var suivre = function () {
-			var limite = (barre.getBoundingClientRect().bottom || 0) + 24;
-			var courant = null;
-			if (window.scrollY < 40) {
-				activer(tout);
-				return;
-			}
-			sections.forEach(function (s) {
-				if (s.cible.getBoundingClientRect().top <= limite) {
-					courant = s.lien;
-				}
-			});
-			activer(courant || tout);
-		};
-		var attente = null;
-		window.addEventListener('scroll', function () {
-			if (attente) { return; }
-			attente = window.requestAnimationFrame(function () {
-				attente = null;
-				suivre();
-			});
-		}, { passive: true });
-	}
-
 	/* ----- Galerie : la dernière rangée est toujours pleine (quelques photos passent en grand format) ----- */
 	var galerie = document.getElementById('galerie');
 	var combler = function () {
-		if (!galerie) { return; }
+		if (!galerie || galerie.classList.contains('galerie--mosaique')) { return; }
 		var visibles = Array.prototype.filter.call(galerie.querySelectorAll('.galerie__item'), function (el) {
 			el.classList.remove('galerie__item--comble');
 			return !el.hidden;
@@ -240,6 +237,27 @@
 				compte.textContent = visibles + (visibles > 1 ? ' réalisations affichées' : ' réalisation affichée');
 			}
 		});
+	});
+
+	/* Lien vers un type précis (#type-pieces, #theme-noel) : le filtre correspondant est activé. */
+	var filtreAncre = function () {
+		var ancreFiltre = (window.location.hash || '').replace(/^#(type-)?/, '');
+		if (!ancreFiltre) { return; }
+		filtres.forEach(function (bouton) {
+			if (bouton.getAttribute('data-filtre') === ancreFiltre) { bouton.click(); }
+		});
+	};
+	if (filtres.length) {
+		filtreAncre();
+		window.addEventListener('hashchange', filtreAncre);
+	}
+
+	/* Lignes de puces (catégories, thèmes) qui défilent sur téléphone : la puce active reste visible. */
+	document.querySelectorAll('.cat-filtres__puces').forEach(function (ligne) {
+		var actif = ligne.querySelector('[aria-current], [aria-pressed="true"]');
+		if (actif && ligne.scrollWidth > ligne.clientWidth) {
+			ligne.scrollLeft = actif.offsetLeft - 18;
+		}
 	});
 
 	/* ----- Vignettes de la fiche modèle ----- */

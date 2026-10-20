@@ -1,7 +1,8 @@
 <?php
 /**
  * Une vignette de la galerie de réalisations, cliquable pour l'agrandir.
- * Arguments : post_id, large (booléen ou null pour suivre le réglage de la réalisation).
+ * Arguments : post_id, large (booléen ou null pour suivre le réglage de la réalisation),
+ * eager, mosaique (photo entière, sans recadrage, pour la page Réalisations).
  */
 $glm_id      = (int) $args['post_id'];
 $glm_avant   = absint( get_post_meta( $glm_id, '_glm_avant', true ) );
@@ -17,9 +18,13 @@ if ( $glm_th && ! is_wp_error( $glm_th ) ) {
 }
 $glm_thumb   = get_post_thumbnail_id( $glm_id );
 $glm_eager   = ! empty( $args['eager'] );
+$glm_mosaique = ! empty( $args['mosaique'] );
 $glm_title   = get_the_title( $glm_id );
 if ( $glm_avant ) {
 	$glm_large = true;
+}
+if ( $glm_mosaique ) {
+	$glm_large = false;
 }
 
 // Photos montrées dans la visionneuse : avant puis après, ou la photo seule.
@@ -41,6 +46,10 @@ foreach ( array_filter( array( $glm_avant, $glm_thumb ) ) as $glm_index => $glm_
 $glm_caption = $glm_title . ( $glm_legende ? ' — ' . $glm_legende : '' );
 $glm_sizes   = $glm_large ? '(min-width: 1240px) 600px, (min-width: 640px) 50vw, 100vw' : '(min-width: 1240px) 290px, (min-width: 1024px) 23vw, (min-width: 640px) 50vw, 100vw';
 $glm_demi    = $glm_large ? '(min-width: 1240px) 300px, (min-width: 640px) 25vw, 50vw' : '(min-width: 1240px) 145px, (min-width: 640px) 25vw, 50vw';
+if ( $glm_mosaique ) {
+	$glm_sizes = '(min-width: 1240px) 395px, (min-width: 1024px) 31vw, (min-width: 640px) 47vw, 100vw';
+	$glm_demi  = '(min-width: 1240px) 195px, (min-width: 640px) 23vw, 50vw';
+}
 $glm_attrs   = array( 'loading' => $glm_eager ? 'eager' : 'lazy', 'sizes' => $glm_sizes );
 if ( $glm_eager ) {
 	$glm_attrs['fetchpriority'] = 'high';
@@ -49,7 +58,7 @@ $glm_overlay = '<span class="galerie__overlay" aria-hidden="true"><svg viewBox="
 ?>
 <figure class="galerie__item reveal<?php echo $glm_large ? ' galerie__item--large' : ''; ?>" data-types="<?php echo esc_attr( implode( ' ', $glm_slugs ) ); ?>" data-slides="<?php echo esc_attr( wp_json_encode( $glm_slides ) ); ?>" data-caption="<?php echo esc_attr( $glm_caption ); ?>">
 	<?php if ( $glm_slides ) : ?>
-		<button type="button" class="galerie__media galerie__zoom<?php echo $glm_avant ? ' galerie__media--avant-apres' : ''; ?>" aria-label="<?php echo esc_attr( 'Agrandir l\'image : ' . $glm_title ); ?>" data-glm-zoom>
+		<button type="button" class="galerie__media galerie__zoom<?php echo $glm_avant ? ' galerie__media--avant-apres' : ''; ?><?php echo ( $glm_mosaique && ! $glm_avant ) ? ' galerie__media--entiere' : ''; ?>" aria-label="<?php echo esc_attr( 'Agrandir l\'image : ' . $glm_title ); ?>" data-glm-zoom>
 			<?php if ( $glm_avant ) : ?>
 				<span class="galerie__part">
 					<?php echo wp_get_attachment_image( $glm_avant, 'glm-carte', false, array_merge( $glm_attrs, array( 'sizes' => $glm_demi ) ) ); ?>
@@ -60,7 +69,7 @@ $glm_overlay = '<span class="galerie__overlay" aria-hidden="true"><svg viewBox="
 					<span class="galerie__etiquette">Après</span>
 				</span>
 			<?php else : ?>
-				<?php echo wp_get_attachment_image( $glm_thumb, $glm_large ? 'glm-large' : 'glm-carte', false, $glm_attrs ); ?>
+				<?php echo wp_get_attachment_image( $glm_thumb, $glm_mosaique ? 'full' : ( $glm_large ? 'glm-large' : 'glm-carte' ), false, $glm_attrs ); ?>
 			<?php endif; ?>
 			<?php echo $glm_overlay; // phpcs:ignore ?>
 		</button>

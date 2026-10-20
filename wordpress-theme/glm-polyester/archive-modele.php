@@ -50,16 +50,6 @@ $glm_modeles = function ( $taxonomy, $term_id ) {
 			<?php if ( $glm_intro ) : ?>
 				<p><?php echo esc_html( $glm_intro ); ?></p>
 			<?php endif; ?>
-			<?php if ( $glm_themes ) : ?>
-				<p class="cat-themes"><span>Par thème :</span>
-					<?php foreach ( $glm_themes as $glm_t ) : ?>
-						<a href="<?php echo esc_url( glm_theme_url( $glm_t ) ); ?>"<?php echo ( $glm_theme && $glm_theme->term_id === $glm_t->term_id ) ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $glm_t->name ); ?></a>
-					<?php endforeach; ?>
-				</p>
-			<?php endif; ?>
-			<?php if ( $glm_accueil && glm_t( 'badge_explication' ) ) : ?>
-				<p class="cat-tete__badge"><span class="tampon tampon--statique"><?php echo esc_html( glm_t( 'badge_court' ) ); ?></span> <?php echo esc_html( glm_t( 'badge_explication' ) ); ?></p>
-			<?php endif; ?>
 		</div>
 		<?php if ( $glm_pdf || $glm_feuille ) : ?>
 			<div class="cat-tete__actions">
@@ -72,21 +62,33 @@ $glm_modeles = function ( $taxonomy, $term_id ) {
 			</div>
 		<?php endif; ?>
 	</div>
+	<nav class="container cat-filtres" aria-label="Catégories et thèmes du catalogue">
+		<div class="cat-filtres__ligne">
+			<span class="cat-filtres__label">Catégories</span>
+			<div class="cat-filtres__puces">
+			<a href="<?php echo esc_url( glm_catalogue_url() ); ?>"<?php echo $glm_accueil ? ' aria-current="page"' : ''; ?>>Tout <span><?php echo esc_html( (string) $glm_total ); ?></span></a>
+			<?php foreach ( $glm_familles as $glm_term ) : ?>
+				<?php
+				$glm_actif = $glm_current && $glm_current->term_id === $glm_term->term_id;
+				// Sur le catalogue complet, les familles sont des ancres de la page (pas de rechargement).
+				$glm_href = $glm_accueil ? '#' . $glm_term->slug : get_term_link( $glm_term );
+				?>
+				<a href="<?php echo esc_url( $glm_href ); ?>"<?php echo $glm_actif ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $glm_term->name ); ?> <span><?php echo esc_html( (string) $glm_term->count ); ?></span></a>
+			<?php endforeach; ?>
+			</div>
+		</div>
+		<?php if ( $glm_themes ) : ?>
+			<div class="cat-filtres__ligne">
+				<span class="cat-filtres__label">Thèmes</span>
+				<div class="cat-filtres__puces">
+				<?php foreach ( $glm_themes as $glm_t ) : ?>
+					<a href="<?php echo esc_url( glm_theme_url( $glm_t ) ); ?>"<?php echo ( $glm_theme && $glm_theme->term_id === $glm_t->term_id ) ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $glm_t->name ); ?> <span><?php echo esc_html( (string) count( $glm_modeles( 'theme_glm', $glm_t->term_id ) ) ); ?></span></a>
+				<?php endforeach; ?>
+				</div>
+			</div>
+		<?php endif; ?>
+	</nav>
 </section>
-
-<nav class="barre-familles" aria-label="Familles du catalogue">
-	<div class="container">
-		<a href="<?php echo esc_url( glm_catalogue_url() ); ?>"<?php echo $glm_accueil ? ' aria-current="page"' : ''; ?>>Tout <span><?php echo esc_html( (string) $glm_total ); ?></span></a>
-		<?php foreach ( $glm_familles as $glm_term ) : ?>
-			<?php
-			$glm_actif = $glm_current && $glm_current->term_id === $glm_term->term_id;
-			// Sur le catalogue complet, les familles sont des ancres de la page (pas de rechargement).
-			$glm_href = $glm_accueil ? '#' . $glm_term->slug : get_term_link( $glm_term );
-			?>
-			<a href="<?php echo esc_url( $glm_href ); ?>"<?php echo $glm_actif ? ' aria-current="page"' : ''; ?><?php echo $glm_accueil ? ' data-ancre' : ''; ?>><?php echo esc_html( $glm_term->name ); ?> <span><?php echo esc_html( (string) $glm_term->count ); ?></span></a>
-		<?php endforeach; ?>
-	</div>
-</nav>
 
 <section class="section catalogue">
 	<div class="container">
@@ -124,13 +126,8 @@ $glm_modeles = function ( $taxonomy, $term_id ) {
 			</div>
 			<?php
 		else :
-			$glm_n       = 0;
-			$glm_petites = array();
+			$glm_n = 0;
 			foreach ( $glm_familles as $glm_term ) :
-				if ( glm_famille_compacte( $glm_term ) ) {
-					$glm_petites[] = $glm_term;
-					continue;
-				}
 				$glm_ids = $glm_modeles( 'famille', $glm_term->term_id );
 				?>
 				<div class="famille2<?php echo 1 === count( $glm_ids ) ? ' famille2--seul' : ''; ?>" id="<?php echo esc_attr( $glm_term->slug ); ?>">
@@ -155,39 +152,6 @@ $glm_modeles = function ( $taxonomy, $term_id ) {
 				</div>
 				<?php
 			endforeach;
-
-			if ( $glm_petites ) :
-				?>
-				<div class="famille2 famille2--groupe">
-					<div class="famille2__tete"><h2 class="display display--s"><?php echo esc_html( glm_t( 'catalogue_groupe_titre' ) ); ?></h2></div>
-					<div class="groupe-pieces">
-						<?php foreach ( $glm_petites as $glm_term ) : ?>
-							<?php $glm_ids = $glm_modeles( 'famille', $glm_term->term_id ); ?>
-							<div class="petite-famille" id="<?php echo esc_attr( $glm_term->slug ); ?>">
-								<div class="petite-famille__tete">
-									<h3 class="titre-carte"><a href="<?php echo esc_url( get_term_link( $glm_term ) ); ?>"><?php echo esc_html( $glm_term->name ); ?></a></h3>
-									<span><?php echo esc_html( (string) count( $glm_ids ) ); ?></span>
-								</div>
-								<?php if ( $glm_term->description ) : ?>
-									<p><?php echo esc_html( $glm_term->description ); ?></p>
-								<?php endif; ?>
-								<?php if ( $glm_ids ) : ?>
-									<div class="petite-famille__cartes">
-										<?php
-										foreach ( $glm_ids as $glm_id ) {
-											glm_modele_card( $glm_id, array( 'titre' => 'h4' ) );
-										}
-										?>
-									</div>
-								<?php else : ?>
-									<p class="vide"><?php echo esc_html( glm_t( 'vide_famille' ) ); ?></p>
-								<?php endif; ?>
-							</div>
-						<?php endforeach; ?>
-					</div>
-				</div>
-				<?php
-			endif;
 		endif;
 		?>
 	</div>

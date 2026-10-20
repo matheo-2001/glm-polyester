@@ -44,7 +44,6 @@ while ( have_posts() ) :
 	}
 
 	$glm_construction = array_filter( array_map( 'trim', explode( "\n", (string) get_post_meta( $glm_id, '_glm_construction', true ) ) ) );
-	$glm_badge        = '1' === get_post_meta( $glm_id, '_glm_sujet_glm', true );
 	$glm_perso        = glm_modele_perso( $glm_id, $glm_famille );
 
 	$glm_devis_url = add_query_arg(
@@ -103,13 +102,13 @@ while ( have_posts() ) :
 						<?php if ( $glm_famille ) : ?>
 							<a class="fiche2__famille" href="<?php echo esc_url( get_term_link( $glm_famille ) ); ?>"><?php echo esc_html( $glm_famille->name ); ?></a>
 						<?php endif; ?>
-						<?php if ( $glm_badge ) : ?>
-							<span class="tampon tampon--statique"><?php echo esc_html( glm_t( 'badge_long' ) ); ?></span>
-						<?php endif; ?>
 					</div>
 					<h1 class="display display--l"><?php the_title(); ?></h1>
 					<?php if ( get_the_content() ) : ?>
 						<div class="fiche2__desc"><?php the_content(); ?></div>
+					<?php endif; ?>
+					<?php if ( $glm_perso ) : ?>
+						<p class="fiche2__perso"><strong><?php echo esc_html( $glm_perso['titre'] ); ?> :</strong> <?php echo esc_html( trim( $glm_perso['texte'] . ' ' . $glm_perso['note'] ) ); ?></p>
 					<?php endif; ?>
 					<div class="fiche2__actions">
 						<a class="btn btn--rouge" href="<?php echo esc_url( $glm_devis_url ); ?>">Demander un devis pour ce modèle</a>
@@ -117,24 +116,6 @@ while ( have_posts() ) :
 							<a class="btn btn--contour" href="<?php echo esc_attr( glm_tel_href( $glm_tel ) ); ?>">Appeler le <?php echo esc_html( $glm_tel ); ?></a>
 						<?php endif; ?>
 					</div>
-					<?php if ( $glm_perso ) : ?>
-						<div class="perso-encart perso-encart--<?php echo esc_attr( $glm_perso['type'] ); ?>">
-							<strong><?php echo esc_html( $glm_perso['titre'] ); ?></strong>
-							<?php if ( 'perso' === $glm_perso['type'] ) : ?>
-								<?php $glm_choix = array_values( array_filter( array( glm_t( 'perso_1_titre' ), glm_t( 'perso_2_titre' ), glm_t( 'perso_3_titre' ) ) ) ); ?>
-								<ul>
-									<?php foreach ( $glm_choix as $glm_c => $glm_label ) : ?>
-										<li><i class="pastille pastille--<?php echo (int) $glm_c + 1; ?>" aria-hidden="true"></i><?php echo esc_html( $glm_label ); ?></li>
-									<?php endforeach; ?>
-								</ul>
-								<?php if ( $glm_perso['note'] ) : ?>
-									<p><?php echo esc_html( $glm_perso['note'] ); ?></p>
-								<?php endif; ?>
-							<?php else : ?>
-								<p><?php echo esc_html( $glm_perso['texte'] ); ?></p>
-							<?php endif; ?>
-						</div>
-					<?php endif; ?>
 				</div>
 			</div>
 		</div>
@@ -145,20 +126,14 @@ while ( have_posts() ) :
 			<div class="container plaque-zone<?php echo ( $glm_specs && $glm_construction ) ? '' : ' plaque-zone--seule'; ?>">
 				<?php if ( $glm_specs ) : ?>
 					<div class="plaque reveal">
-						<span class="plaque__rivets" aria-hidden="true"></span>
-						<?php if ( $glm_badge ) : ?>
-							<h2 class="plaque__marque"><span class="screen-reader-text">Caractéristiques, </span><b><?php echo esc_html( get_bloginfo( 'name' ) ); ?></b><span><?php echo esc_html( trim( preg_replace( '/\d{5}/', '', glm_opt( 'adresse_2', '60120 Breteuil' ) ) ) ); ?></span></h2>
-						<?php else : ?>
-							<h2 class="plaque__marque"><b>Caractéristiques</b></h2>
-						<?php endif; ?>
+						<h2 class="plaque__marque">Caractéristiques</h2>
 						<dl>
 							<div><dt>Modèle</dt><dd><?php the_title(); ?></dd></div>
 							<?php if ( $glm_famille ) : ?>
 								<div><dt>Famille</dt><dd><?php echo esc_html( $glm_famille->name ); ?></dd></div>
 							<?php endif; ?>
 							<?php foreach ( $glm_specs as $glm_key => $glm_spec ) : ?>
-								<?php $glm_large = in_array( $glm_key, array( '_glm_dimensions', '_glm_finition', '_glm_options' ), true ); ?>
-								<div<?php echo $glm_large ? ' class="large"' : ''; ?>><dt><?php echo esc_html( $glm_spec[0] ); ?></dt><dd><?php echo esc_html( $glm_spec[1] ); ?></dd></div>
+								<div><dt><?php echo esc_html( $glm_spec[0] ); ?></dt><dd><?php echo esc_html( $glm_spec[1] ); ?></dd></div>
 							<?php endforeach; ?>
 						</dl>
 					</div>

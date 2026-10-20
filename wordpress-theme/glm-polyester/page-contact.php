@@ -134,7 +134,6 @@ $glm_msg = function ( $champ ) use ( $glm_erreurs, $glm_messages ) {
 						<div><?php echo esc_html( $glm_horaires ); ?></div>
 					</div>
 				<?php endif; ?>
-				<a class="lien-fleche" href="<?php echo esc_url( 'https://www.openstreetmap.org/search?query=' . rawurlencode( $glm_adresse ) ); ?>" target="_blank" rel="noopener">Voir l'atelier sur la carte<span class="screen-reader-text"> (nouvel onglet)</span></a>
 				<?php if ( $glm_facebook ) : ?>
 					<a class="lien-fleche" href="<?php echo esc_url( $glm_facebook ); ?>" target="_blank" rel="noopener">Suivre l'atelier sur Facebook<span class="screen-reader-text"> (nouvel onglet)</span></a>
 				<?php endif; ?>

@@ -21,8 +21,8 @@ add_action( 'customize_register', function ( $wp_customize ) {
 	) );
 
 	$texts = array(
-		'telephone' => array( 'Téléphone', '', 'Affiché dans le pied de page, la page contact et les bandeaux de devis.' ),
-		'email'     => array( 'E-mail', '', 'Adresse affichée et destinataire des demandes de devis.' ),
+		'telephone' => array( 'Téléphone', '07 60 16 26 39', 'Affiché dans le pied de page, la page contact et les bandeaux de devis.' ),
+		'email'     => array( 'E-mail', 'contact@glm-polyester.com', 'Adresse affichée et destinataire des demandes de devis.' ),
 		'adresse_1' => array( 'Adresse, ligne 1', '46 rue de Montdidier', '' ),
 		'adresse_2' => array( 'Adresse, ligne 2', '60120 Breteuil', '' ),
 		'horaires'  => array( 'Horaires', '', 'Exemple : Du lundi au vendredi, 8 h – 18 h' ),
@@ -83,7 +83,7 @@ add_action( 'customize_register', function ( $wp_customize ) {
 		'img_etape_3'     => 'Atelier : étape 3, peinture et éclairage',
 		'img_perso_1'     => 'Accueil, Personnalisable : photo du choix 1 (couleurs)',
 		'img_perso_2'     => 'Accueil, Personnalisable : photo du choix 2 (décor peint)',
-		'img_perso_3'     => 'Accueil, Personnalisable : photo du choix 3 (covering)',
+		'img_perso_3'     => 'Accueil, Personnalisable : photo du choix 3 (éclairage)',
 	);
 	foreach ( $photos as $key => $label ) {
 		$wp_customize->add_setting( 'glm_' . $key, array(
@@ -119,28 +119,22 @@ add_action( 'customize_register', function ( $wp_customize ) {
 		}
 	}
 
-	/* ----- Atelier ----- */
-	$wp_customize->add_section( 'glm_atelier', array(
-		'title' => 'Page L\'atelier',
+	/* ----- Réalisations ----- */
+	$wp_customize->add_section( 'glm_realisations', array(
+		'title' => 'Réalisations',
 		'panel' => 'glm',
 	) );
-	$wp_customize->add_setting( 'glm_experience', array(
-		'default'           => '',
-		'sanitize_callback' => 'sanitize_text_field',
+	$wp_customize->add_setting( 'glm_licences', array(
+		'default'           => '1',
+		'sanitize_callback' => function ( $value ) {
+			return $value ? '1' : '0';
+		},
 	) );
-	$wp_customize->add_control( 'glm_experience', array(
-		'label'       => 'Années d\'expérience',
-		'description' => 'Exemple : 30 ans. Laissez vide pour masquer ce chiffre.',
-		'section'     => 'glm_atelier',
-		'type'        => 'text',
+	$wp_customize->add_control( 'glm_licences', array(
+		'label'       => 'Afficher les photos avec des personnages sous licence',
+		'description' => 'Disney, Nintendo, Pat\'Patrouille… Décochez pour retirer ces photos du site d\'un seul coup (elles restent dans l\'administration).',
+		'section'     => 'glm_realisations',
+		'type'        => 'checkbox',
 	) );
-	$wp_customize->add_setting( 'glm_experience_texte', array(
-		'default'           => 'D\'expérience dans la construction de manèges.',
-		'sanitize_callback' => 'sanitize_text_field',
-	) );
-	$wp_customize->add_control( 'glm_experience_texte', array(
-		'label'   => 'Texte sous le chiffre',
-		'section' => 'glm_atelier',
-		'type'    => 'text',
-	) );
+
 } );

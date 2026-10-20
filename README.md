@@ -21,21 +21,27 @@ ne l'indexent pas (`robots.txt` et balise `noindex`).
 
 L'ancienne maquette est conservée sur la branche `ancienne-maquette`.
 
-## Thème WordPress (version 1.1)
+## Thème WordPress (version 1.2)
 
 Thème classique, sans constructeur de pages :
 
-- types de contenu **Modèles** (catalogue, familles, thèmes) et **Réalisations** (galerie avec visionneuse) ;
+- types de contenu **Modèles** (catalogue, familles, thèmes) et **Réalisations** (galerie de photos entières
+  avec visionneuse, filtres par type et par thème ; les photos de personnages sous licence peuvent être masquées
+  d'un coup dans *Apparence > Personnaliser > GLM Polyester > Réalisations*) ;
+- une page détaillée par service (pages enfants de *Services* : texte modifiable dans l'éditeur, photos d'exemple
+  prises automatiquement dans les réalisations du même type, liste « pour un devis » et questions fréquentes dans
+  *Apparence > Personnaliser*) ;
 - réglages dans *Apparence > Personnaliser > GLM Polyester* : coordonnées, photos des sections, PDF du catalogue,
   et tous les textes des pages (accueil, catalogue et fiches, services, atelier, contact, bandeaux de devis, référencement) ;
 - réglages de chaque famille dans *Catalogue > Familles* : ordre d'affichage, photo de la famille, présentation
-  (section complète ou regroupée avec les petites familles) ;
+  (grande ou petite tuile sur la page d'accueil) ;
 - formulaire de devis : vérification champ par champ, saisie conservée en cas d'erreur, photos réduites dans le navigateur
   avant l'envoi ;
 - images : tailles créées en WebP ; *Outils > Images WebP* convertit les photos déjà présentes (les originaux ne sont pas touchés) ;
 - référencement : descriptions, aperçus de partage (Open Graph), données structurées (entreprise locale, produits,
   fil d'Ariane), plan du site nettoyé, pages par thème en `/catalogue/theme/<thème>/` ;
-- page *Feuilleter le catalogue* (livre feuilletable, bibliothèque StPageFlip incluse dans `assets/vendor/`).
+- page *Feuilleter le catalogue* (livre feuilletable, bibliothèque StPageFlip incluse dans `assets/vendor/`) : désactivée
+  pour l'instant (son adresse renvoie vers le catalogue) ; le filtre `glm_feuilleter_actif` permet de la réactiver.
   Les pages affichées sont des images placées dans `wp-content/uploads/glm-catalogue/page-NN-1600.jpg` (et `-900.jpg`),
   avec une version `.webp` à côté, à régénérer quand le PDF change.
 

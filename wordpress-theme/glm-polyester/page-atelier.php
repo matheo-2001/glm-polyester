@@ -8,7 +8,6 @@ get_header();
 
 glm_page_hero( get_the_title() ? get_the_title() : 'L\'atelier', glm_t( 'atelier_intro' ) );
 
-$glm_experience = glm_opt( 'experience' );
 $glm_etapes     = array();
 foreach ( array( 1 => 'Moule d\'une pièce de manège', 2 => 'Pièce thermoformée', 3 => 'Détail d\'un traîneau peint et éclairé' ) as $glm_i => $glm_alt ) {
 	$glm_etapes[ $glm_i ] = array(
@@ -38,6 +37,20 @@ foreach ( array( 1 => 'Moule d\'une pièce de manège', 2 => 'Pièce thermoform�
 	</div>
 </section>
 
+<?php $glm_metier = glm_t_paragraphes( 'atelier_metier_texte' ); ?>
+<?php if ( $glm_metier ) : ?>
+	<section class="section section--fond">
+		<div class="container bloc-texte reveal">
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'atelier_metier_titre' ) ); ?></h2>
+			<div class="bloc-texte__corps">
+				<?php foreach ( $glm_metier as $glm_para ) : ?>
+					<p><?php echo esc_html( $glm_para ); ?></p>
+				<?php endforeach; ?>
+			</div>
+		</div>
+	</section>
+<?php endif; ?>
+
 <section class="section section--sombre">
 	<div class="container">
 		<div class="section-head reveal">
@@ -59,24 +72,76 @@ foreach ( array( 1 => 'Moule d\'une pièce de manège', 2 => 'Pièce thermoform�
 	</div>
 </section>
 
-<section class="section">
-	<div class="container chiffres">
-		<div class="reveal">
-			<strong><?php echo esc_html( glm_t( 'chiffre_lieu_titre' ) ); ?></strong>
-			<p><?php echo esc_html( glm_t( 'chiffre_lieu_texte' ) ); ?></p>
+<?php $glm_savoirs = glm_t_paires( 'atelier_savoirs' ); ?>
+<?php if ( $glm_savoirs ) : ?>
+	<section class="section">
+		<div class="container">
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'atelier_savoirs_titre' ) ); ?></h2>
+			<ul class="cartes-texte">
+				<?php foreach ( $glm_savoirs as $glm_paire ) : ?>
+					<li class="reveal"><h3><?php echo esc_html( $glm_paire[0] ); ?></h3><p><?php echo esc_html( $glm_paire[1] ); ?></p></li>
+				<?php endforeach; ?>
+			</ul>
 		</div>
-		<?php if ( $glm_experience ) : ?>
-			<div class="reveal">
-				<strong><?php echo esc_html( $glm_experience ); ?></strong>
-				<p><?php echo esc_html( glm_opt( 'experience_texte', 'D\'expérience dans la construction de manèges.' ) ); ?></p>
+	</section>
+<?php endif; ?>
+
+<?php $glm_clients = glm_t_paires( 'atelier_clients' ); ?>
+<?php if ( $glm_clients ) : ?>
+	<section class="section section--fond">
+		<div class="container">
+			<h2 class="display display--m"><?php echo esc_html( glm_t( 'atelier_clients_titre' ) ); ?></h2>
+			<ul class="clients-pictos">
+				<?php foreach ( $glm_clients as $glm_index => $glm_paire ) : ?>
+					<li class="reveal"><?php echo glm_picto_client( $glm_index ); // phpcs:ignore ?><h3><?php echo esc_html( $glm_paire[0] ); ?></h3><p><?php echo esc_html( $glm_paire[1] ); ?></p></li>
+				<?php endforeach; ?>
+			</ul>
+		</div>
+	</section>
+<?php endif; ?>
+
+<?php $glm_photos = glm_realisations_choisies( 6, array(), true ); ?>
+<?php if ( $glm_photos ) : ?>
+	<section class="section">
+		<div class="container">
+			<div class="section-head reveal">
+				<h2 class="display display--m"><?php echo esc_html( glm_t( 'atelier_photos_titre' ) ); ?></h2>
+				<a class="lien-fleche" href="<?php echo esc_url( glm_realisations_url() ); ?>">Toutes les réalisations</a>
 			</div>
-		<?php endif; ?>
-		<div class="reveal">
-			<strong><?php echo esc_html( glm_t( 'chiffre_metiers_titre' ) ); ?></strong>
-			<p><?php echo esc_html( glm_t( 'chiffre_metiers_texte' ) ); ?></p>
+			<div class="galerie galerie--mosaique" data-glm-groupe>
+				<?php
+				foreach ( $glm_photos as $glm_id ) {
+					get_template_part( 'template-parts/realisation', null, array( 'post_id' => $glm_id, 'large' => false, 'mosaique' => true ) );
+				}
+				?>
+			</div>
 		</div>
+	</section>
+<?php endif; ?>
+
+<section class="section section--fond">
+	<div class="container">
+		<h2 class="display display--m"><?php echo esc_html( glm_t( 'atelier_services_titre' ) ); ?></h2>
+		<?php glm_liste_services(); ?>
 	</div>
 </section>
+
+<?php $glm_faq = glm_faq( 'atelier_faq' ); ?>
+<?php if ( $glm_faq ) : ?>
+	<section class="section">
+		<div class="container">
+			<h2 class="display display--m faq-titre"><?php echo esc_html( glm_t( 'atelier_faq_titre' ) ); ?></h2>
+			<div class="faq faq--centre">
+				<?php foreach ( $glm_faq as $glm_qr ) : ?>
+					<details class="faq__item">
+						<summary><?php echo esc_html( $glm_qr[0] ); ?></summary>
+						<p><?php echo esc_html( $glm_qr[1] ); ?></p>
+					</details>
+				<?php endforeach; ?>
+			</div>
+		</div>
+	</section>
+<?php endif; ?>
 
 <?php
 glm_cta();

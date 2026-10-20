@@ -4,10 +4,7 @@
  */
 get_header();
 
-$glm_realisations = get_posts( array(
-	'post_type'      => 'realisation',
-	'posts_per_page' => 3,
-) );
+$glm_realisations = glm_realisations_choisies( 3 );
 
 // Familles : les familles principales en grand (les plus fournies d'abord), les petites familles en petit, comme dans le catalogue.
 $glm_familles = glm_familles();
@@ -46,30 +43,22 @@ $glm_total   = (int) wp_count_posts( 'modele' )->publish;
 			?>
 		</div>
 	</div>
-	<div class="guirlande" aria-hidden="true"></div>
-	<?php $glm_publics = glm_t_lignes( 'publics' ); ?>
-	<?php if ( $glm_publics ) : ?>
-		<div class="hero2__public">
-			<div class="container">
-				<p><strong><?php echo esc_html( glm_t( 'publics_titre' ) ); ?></strong></p>
-				<ul>
-					<?php foreach ( $glm_publics as $glm_public ) : ?>
-						<li><?php echo esc_html( $glm_public ); ?></li>
-					<?php endforeach; ?>
-				</ul>
-			</div>
-		</div>
-	<?php endif; ?>
+	<a class="hero2__suite" href="#suite" aria-label="Voir la suite de la page"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.4"/></svg></a>
 </section>
 
-<section class="metiers">
+<section class="metiers" id="suite">
 	<div class="container metiers__grid">
-		<?php for ( $glm_i = 1; $glm_i <= 4; $glm_i++ ) : ?>
-			<div class="reveal">
+		<?php
+		// Chaque métier mène à la page du service ; sur téléphone, la phrase courte du service remplace le texte.
+		$glm_metiers = array( 1 => 'fabrication', 2 => 'personnalisable', 3 => 'reparation', 4 => 'renovation' );
+		foreach ( $glm_metiers as $glm_i => $glm_service ) :
+			?>
+			<a class="metier reveal" href="<?php echo esc_url( glm_service_url( $glm_service ) ); ?>">
 				<h2 class="titre-carte"><?php echo esc_html( glm_t( 'metier_' . $glm_i . '_titre' ) ); ?></h2>
-				<p><?php echo esc_html( glm_t( 'metier_' . $glm_i . '_texte' ) ); ?></p>
-			</div>
-		<?php endfor; ?>
+				<p class="metier__texte"><?php echo esc_html( glm_t( 'metier_' . $glm_i . '_texte' ) ); ?></p>
+				<p class="metier__court"><?php echo esc_html( glm_t( 'service_' . $glm_service . '_court' ) ); ?></p>
+			</a>
+		<?php endforeach; ?>
 	</div>
 </section>
 
@@ -108,21 +97,28 @@ $glm_total   = (int) wp_count_posts( 'modele' )->publish;
 </section>
 <?php endif; ?>
 
-<section class="section section--fond">
+<?php
+// Photos d'origine des trois choix (remplaçables dans Apparence > Personnaliser > Photos).
+$glm_perso_photos = array(
+	1 => array( 'img/perso-couleurs.webp', 'Bateau de manège peint en dégradé rose, vert et jaune pailleté' ),
+	2 => array( 'img/perso-decor.webp', 'Hélicoptère de manège jaune avec armoiries et numéro peints' ),
+	3 => array( 'img/perso-eclairage.webp', 'Motos de police de manège avec leurs feux allumés' ),
+);
+?>
+<section class="section section--fond section-perso">
 	<div class="container perso">
 		<div class="perso__texte reveal">
 			<h2 class="display display--m"><?php echo esc_html( glm_t( 'perso_titre' ) ); ?></h2>
-			<p><?php echo esc_html( glm_t( 'perso_texte' ) ); ?></p>
-			<?php if ( glm_t( 'perso_note' ) ) : ?>
-				<p class="perso__note"><?php echo esc_html( glm_t( 'perso_note' ) ); ?></p>
-			<?php endif; ?>
-			<a class="lien-fleche" href="<?php echo esc_url( add_query_arg( 'demande', 'sur-mesure', glm_page_url( 'contact' ) ) . '#formulaire' ); ?>"><?php echo esc_html( glm_t( 'perso_lien' ) ); ?></a>
+			<div class="perso__ligne">
+				<p><?php echo esc_html( trim( glm_t( 'perso_texte' ) . ' ' . glm_t( 'perso_note' ) ) ); ?></p>
+				<a class="btn btn--rouge" href="<?php echo esc_url( glm_service_devis_url( 'personnalisable' ) ); ?>"><?php echo esc_html( glm_t( 'perso_lien' ) ); ?></a>
+			</div>
 		</div>
 		<ul class="perso__choix">
 			<?php for ( $glm_i = 1; $glm_i <= 3; $glm_i++ ) : ?>
-				<?php $glm_photo = glm_image_opt( 'img_perso_' . $glm_i, '', glm_t( 'perso_' . $glm_i . '_titre' ), 'glm-carte', array( 'sizes' => '(min-width: 1024px) 220px, 33vw' ) ); ?>
+				<?php $glm_photo = glm_image_opt( 'img_perso_' . $glm_i, $glm_perso_photos[ $glm_i ][0], $glm_perso_photos[ $glm_i ][1], 'glm-carte', array( 'sizes' => '(min-width: 1240px) 400px, (min-width: 640px) 33vw, 100vw' ) ); ?>
 				<li class="reveal">
-					<div class="perso__visuel<?php echo $glm_photo ? '' : ' perso__visuel--' . $glm_i; ?>"<?php echo $glm_photo ? '' : ' aria-hidden="true"'; ?>><?php echo $glm_photo; // phpcs:ignore ?></div>
+					<div class="perso__visuel"><?php echo $glm_photo; // phpcs:ignore ?></div>
 					<strong><?php echo esc_html( glm_t( 'perso_' . $glm_i . '_titre' ) ); ?></strong>
 					<span><?php echo esc_html( glm_t( 'perso_' . $glm_i . '_texte' ) ); ?></span>
 				</li>
@@ -160,9 +156,9 @@ $glm_total   = (int) wp_count_posts( 'modele' )->publish;
 		</div>
 		<div class="galerie" data-glm-groupe>
 			<?php
-			foreach ( $glm_realisations as $glm_index => $glm_post ) {
+			foreach ( $glm_realisations as $glm_index => $glm_post_id ) {
 				get_template_part( 'template-parts/realisation', null, array(
-					'post_id' => $glm_post->ID,
+					'post_id' => $glm_post_id,
 					'large'   => 0 === $glm_index,
 				) );
 			}

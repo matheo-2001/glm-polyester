@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GLM_VERSION', '1.1.0' );
+define( 'GLM_VERSION', '1.2.0' );
 
 require get_template_directory() . '/inc/textes.php';
 require get_template_directory() . '/inc/content-types.php';
@@ -15,6 +15,7 @@ require get_template_directory() . '/inc/admin.php';
 require get_template_directory() . '/inc/customizer.php';
 require get_template_directory() . '/inc/contact.php';
 require get_template_directory() . '/inc/install.php';
+require get_template_directory() . '/inc/textes-services.php';
 require get_template_directory() . '/inc/import.php';
 require get_template_directory() . '/inc/images.php';
 require get_template_directory() . '/inc/seo.php';
@@ -74,8 +75,24 @@ remove_action( 'wp_print_styles', 'print_emoji_styles' );
 
 /** Valeur d'un réglage du thème (Apparence > Personnaliser). */
 function glm_opt( $key, $default = '' ) {
-	$value = get_theme_mod( 'glm_' . $key, $default );
-	return ( '' === $value || null === $value ) ? $default : $value;
+	$value = get_theme_mod( 'glm_' . $key, '' );
+	if ( '' === $value || null === $value || false === $value ) {
+		$defauts = glm_coordonnees_defaut();
+		return isset( $defauts[ $key ] ) ? $defauts[ $key ] : $default;
+	}
+	return $value;
+}
+
+/** Coordonnées par défaut (modifiables dans Apparence > Personnaliser > GLM Polyester > Coordonnées). */
+function glm_coordonnees_defaut() {
+	return array(
+		'telephone' => '07 60 16 26 39',
+		'email'     => 'contact@glm-polyester.com',
+		'adresse_1' => '46 rue de Montdidier',
+		'adresse_2' => '60120 Breteuil',
+		'facebook'  => 'https://www.facebook.com/glmpolyester/',
+		'siret'     => '977 989 318 00026',
+	);
 }
 
 /** URL d'un fichier du dossier assets. */
@@ -138,7 +155,7 @@ function glm_nav_items() {
 	return array(
 		array( 'Accueil', home_url( '/' ), is_front_page() ),
 		array( 'Catalogue', glm_catalogue_url(), is_post_type_archive( 'modele' ) || is_singular( 'modele' ) || is_tax( 'famille' ) || is_page( 'feuilleter-le-catalogue' ) ),
-		array( 'Services', glm_page_url( 'services' ), is_page( 'services' ) ),
+		array( 'Services', glm_page_url( 'services' ), is_page( 'services' ) || '' !== glm_service_courant() ),
 		array( 'Réalisations', glm_realisations_url(), is_post_type_archive( 'realisation' ) ),
 		array( 'L\'atelier', glm_page_url( 'atelier' ), is_page( 'atelier' ) ),
 		array( 'Contact', glm_page_url( 'contact' ), is_page( 'contact' ) ),
@@ -183,9 +200,16 @@ function glm_catalogue_pages() {
 	return $pages;
 }
 
-/** Adresse de la page « Feuilleter le catalogue », ou vide s'il n'y a rien à feuilleter. */
+/**
+ * Adresse de la page « Feuilleter le catalogue », ou vide.
+ * Le catalogue à feuilleter n'est plus proposé sur le site : la fonction renvoie vide,
+ * sauf si on le réactive avec le filtre glm_feuilleter_actif.
+ */
+function glm_feuilleter_actif() {
+	return (bool) apply_filters( 'glm_feuilleter_actif', false );
+}
 function glm_feuilleter_url() {
-	if ( ! glm_catalogue_pages() ) {
+	if ( ! glm_feuilleter_actif() || ! glm_catalogue_pages() ) {
 		return '';
 	}
 	$page = get_page_by_path( 'feuilleter-le-catalogue' );
@@ -198,9 +222,17 @@ function glm_catalogue_pdf_url() {
 	return $pdf ? (string) wp_get_attachment_url( $pdf ) : '';
 }
 
-// Crée une fois la page « Feuilleter le catalogue » (modèle page-feuilleter-le-catalogue.php).
+// Page « Feuilleter le catalogue » désactivée : son adresse renvoie vers le catalogue.
+add_action( 'template_redirect', function () {
+	if ( ! glm_feuilleter_actif() && is_page( 'feuilleter-le-catalogue' ) ) {
+		wp_safe_redirect( glm_catalogue_url(), 301 );
+		exit;
+	}
+} );
+
+// Crée une fois la page « Feuilleter le catalogue » (modèle page-feuilleter-le-catalogue.php), si elle est réactivée.
 add_action( 'admin_init', function () {
-	if ( get_option( 'glm_page_feuilleter' ) || ! current_user_can( 'manage_options' ) ) {
+	if ( ! glm_feuilleter_actif() || get_option( 'glm_page_feuilleter' ) || ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
 	if ( glm_ensure_page( 'feuilleter-le-catalogue', 'Feuilleter le catalogue' ) ) {
@@ -215,6 +247,188 @@ function glm_services() {
 		$services[ $slug ] = glm_t( 'service_' . $slug . '_titre' );
 	}
 	return $services;
+}
+
+// Classes du corps de page pour la page L'atelier et les pages de services (mises en page sur téléphone).
+add_filter( 'body_class', function ( $classes ) {
+	if ( is_page( 'atelier' ) ) {
+		$classes[] = 'page-atelier';
+	}
+	if ( is_page( 'services' ) ) {
+		$classes[] = 'page-services';
+	}
+	if ( glm_service_courant() ) {
+		$classes[] = 'page-service';
+	}
+	return $classes;
+} );
+
+/** Réglages de chaque service : type de demande du formulaire et types de réalisations montrés en exemple. */
+function glm_service_infos( $slug ) {
+	$infos = apply_filters( 'glm_service_infos', array(
+		'fabrication'     => array( 'demande' => 'catalogue', 'types' => array( 'sujets', 'maneges' ), 'familles' => array( 'sujets-roulants', 'sujets-volants', 'maneges-complets', 'pieces-et-thermoformage' ) ),
+		'personnalisable' => array( 'demande' => 'sur-mesure', 'types' => array( 'decors', 'sujets' ), 'familles' => array( 'sujets-roulants', 'sujets-volants' ) ),
+		'thermoformage'   => array( 'demande' => 'thermoformage', 'types' => array( 'pieces' ), 'familles' => array( 'pieces-et-thermoformage', 'luminaires' ) ),
+		'reparation'      => array( 'demande' => 'reparation', 'types' => array( 'mecanique' ), 'familles' => array( 'pieces-et-thermoformage', 'collecteurs', 'accessoires' ) ),
+		'renovation'      => array( 'demande' => 'renovation', 'types' => array( 'renovation' ), 'familles' => array( 'sujets-roulants', 'sujets-volants', 'maneges-complets' ) ),
+	) );
+	$infos = isset( $infos[ $slug ] ) ? $infos[ $slug ] : array();
+	return wp_parse_args( $infos, array( 'demande' => 'autre', 'types' => array(), 'familles' => array() ) );
+}
+
+/** Page détaillée d'un service (page enfant de « Services », publiée), ou null. */
+function glm_service_page( $slug ) {
+	static $cache = array();
+	if ( ! array_key_exists( $slug, $cache ) ) {
+		$page           = get_page_by_path( 'services/' . $slug );
+		$cache[ $slug ] = ( $page && 'publish' === $page->post_status ) ? $page : null;
+	}
+	return $cache[ $slug ];
+}
+
+/** Adresse d'un service : sa page détaillée, sinon son paragraphe de la page Services. */
+function glm_service_url( $slug ) {
+	$page = glm_service_page( $slug );
+	return $page ? get_permalink( $page ) : glm_page_url( 'services' ) . '#' . $slug;
+}
+
+/** Formulaire de devis pré-rempli pour un service. */
+function glm_service_devis_url( $slug ) {
+	$infos = glm_service_infos( $slug );
+	return add_query_arg( 'demande', $infos['demande'], glm_page_url( 'contact' ) ) . '#formulaire';
+}
+
+/** Service de la page courante (page enfant de « Services »), ou chaîne vide. */
+function glm_service_courant() {
+	if ( ! is_page() ) {
+		return '';
+	}
+	$page = get_queried_object();
+	if ( ! $page || ! $page->post_parent ) {
+		return '';
+	}
+	$parent = get_post( $page->post_parent );
+	return ( $parent && 'services' === $parent->post_name && array_key_exists( $page->post_name, glm_services() ) ) ? $page->post_name : '';
+}
+
+// Les pages enfants de « Services » (fabrication, réparation…) utilisent le modèle page-service.php.
+add_filter( 'page_template', function ( $template ) {
+	if ( glm_service_courant() ) {
+		$service = locate_template( 'page-service.php' );
+		if ( $service ) {
+			return $service;
+		}
+	}
+	return $template;
+} );
+
+/**
+ * Questions fréquentes d'un service : array( array( question, réponse ) ).
+ * Une question sans réponse n'est pas affichée.
+ */
+function glm_service_faq( $slug ) {
+	return glm_faq( 'service_' . $slug . '_faq' );
+}
+
+/** Questions fréquentes d'un texte du registre (question sur une ligne, réponse dessous, ligne vide entre deux). */
+function glm_faq( $key ) {
+	$texte = str_replace( "\r", '', glm_t( $key ) );
+	$faq   = array();
+	foreach ( preg_split( '/\n\s*\n/', trim( $texte ) ) as $bloc ) {
+		$lignes   = array_values( array_filter( array_map( 'trim', explode( "\n", $bloc ) ) ) );
+		$question = $lignes ? array_shift( $lignes ) : '';
+		$reponse  = implode( ' ', $lignes );
+		if ( '' !== $question && '' !== $reponse ) {
+			$faq[] = array( $question, $reponse );
+		}
+	}
+	return $faq;
+}
+
+/** Pictogramme d'un client de la page L'atelier (dans l'ordre : forains, parcs, collectivités, particuliers). */
+function glm_picto_client( $index ) {
+	$dessins = array(
+		// Chapiteau.
+		'<path d="M6 40V22L24 9l18 13v18M3 40h42M6 22q4.5 4 9 0q4.5 4 9 0q4.5 4 9 0q4.5 4 9 0M20 40v-8a4 4 0 0 1 8 0v8M24 9V3l6 2-6 2"/>',
+		// Grande roue.
+		'<circle cx="24" cy="19" r="14"/><circle cx="24" cy="19" r="2.5"/><path d="M24 5v28M10 19h28M14.1 9.1l19.8 19.8M33.9 9.1L14.1 28.9M22 21l-9 23M26 21l9 23M8 44h32"/>',
+		// Mairie.
+		'<path d="M6 18h36L24 8zM9 22v16M17 22v16M31 22v16M39 22v16M5 42h38M7 38h34M24 8V2l6 2-6 2"/><path d="M21 38v-9h6v9"/>',
+		// Maison.
+		'<path d="M6 23L24 8l18 15M11 19v23h26V19M20 42V31h8v11M3 42h42"/><rect x="29" y="23" width="5" height="5"/>',
+	);
+	$dessin = isset( $dessins[ $index ] ) ? $dessins[ $index ] : $dessins[0];
+	return '<svg class="clients-pictos__picto" viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $dessin . '</svg>';
+}
+
+/** Services en tuiles photo (page L'atelier, bas des pages services). $sauf : service à ne pas répéter. */
+function glm_liste_services( $sauf = '' ) {
+	$services = glm_services();
+	unset( $services[ $sauf ] );
+	echo '<ul class="tuiles-services tuiles-services--' . count( $services ) . '">';
+	foreach ( $services as $slug => $titre ) {
+		$photo = glm_service_image( $slug, 'glm-carte', array( 'sizes' => '(min-width: 1240px) 620px, (min-width: 640px) 50vw, 100vw', 'alt' => '' ) );
+		printf(
+			'<li><a class="tuile-service%s" href="%s">%s<span class="tuile-service__txt"><strong>%s</strong><span>%s</span></span></a></li>',
+			$photo ? '' : ' tuile-service--sans-photo',
+			esc_url( glm_service_url( $slug ) ),
+			$photo, // phpcs:ignore
+			esc_html( $titre ),
+			esc_html( glm_t( 'service_' . $slug . '_court' ) )
+		);
+	}
+	echo '</ul>';
+}
+
+/** Paragraphes d'un texte du registre (séparés par une ligne vide). */
+function glm_t_paragraphes( $key ) {
+	return array_values( array_filter( array_map( 'trim', preg_split( '/\n\s*\n/', str_replace( "\r", '', glm_t( $key ) ) ) ) ) );
+}
+
+/** Lignes « Titre : texte » d'un texte du registre : array( array( titre, texte ) ). */
+function glm_t_paires( $key ) {
+	$paires = array();
+	foreach ( glm_t_lignes( $key ) as $ligne ) {
+		$morceaux = preg_split( '/\s+:\s+/u', $ligne, 2 );
+		$texte    = isset( $morceaux[1] ) ? trim( $morceaux[1] ) : '';
+		// Le texte commence par une majuscule, même s'il est écrit à la suite des deux-points.
+		$texte    = '' === $texte ? '' : mb_strtoupper( mb_substr( $texte, 0, 1 ) ) . mb_substr( $texte, 1 );
+		$paires[] = array( trim( $morceaux[0] ), $texte );
+	}
+	return $paires;
+}
+
+/** Réglage et photo du thème utilisés pour la photo d'un service. */
+function glm_service_photo_cle( $slug ) {
+	$cles = array(
+		'fabrication'     => array( 'img_fabrication', 'img/traineau.jpg' ),
+		'personnalisable' => array( 'img_sur_mesure', 'img/sujet-pompier.jpg' ),
+		'thermoformage'   => array( 'img_thermoformage', '' ),
+		'reparation'      => array( 'img_reparation', '' ),
+		'renovation'      => array( 'img_renovation', '' ),
+	);
+	return isset( $cles[ $slug ] ) ? $cles[ $slug ] : array( '', '' );
+}
+
+/** La photo du service est-elle choisie (réglage ou photo du thème) plutôt que prise dans les réalisations ? */
+function glm_service_photo_choisie( $slug ) {
+	$cle = glm_service_photo_cle( $slug );
+	return absint( get_theme_mod( 'glm_' . $cle[0] ) ) || $cle[1];
+}
+
+/** Photo d'un service : celle choisie dans Apparence > Personnaliser, sinon la première réalisation du même type. */
+function glm_service_image( $slug, $size = 'glm-large', $attrs = array() ) {
+	$cle   = glm_service_photo_cle( $slug );
+	$titre = glm_t( 'service_' . $slug . '_titre' );
+	if ( glm_service_photo_choisie( $slug ) ) {
+		return glm_image_opt( $cle[0], $cle[1], $titre, $size, $attrs );
+	}
+	$infos = glm_service_infos( $slug );
+	$ids   = $infos['types'] ? glm_realisations_choisies( 1, $infos['types'], true ) : array();
+	if ( $ids && has_post_thumbnail( $ids[0] ) ) {
+		return wp_get_attachment_image( get_post_thumbnail_id( $ids[0] ), $size, false, $attrs );
+	}
+	return '';
 }
 
 /** Flèche des menus déroulants. */
@@ -249,11 +463,11 @@ function glm_mega_catalogue() {
 
 /** Liste déroulante des services (ordinateur). */
 function glm_mega_services() {
-	$url  = glm_page_url( 'services' );
 	$html = '<div class="dropdown" id="mega-services"><ul>';
 	foreach ( glm_services() as $slug => $titre ) {
-		$html .= '<li><a href="' . esc_url( $url . '#' . $slug ) . '">' . esc_html( $titre ) . '</a></li>';
+		$html .= '<li><a href="' . esc_url( glm_service_url( $slug ) ) . '"' . ( glm_service_courant() === $slug ? ' aria-current="page"' : '' ) . '>' . esc_html( $titre ) . '</a></li>';
 	}
+	$html .= '</ul><ul class="dropdown__pied"><li><a class="dropdown__tout" href="' . esc_url( glm_page_url( 'services' ) ) . '"' . ( is_page( 'services' ) ? ' aria-current="page"' : '' ) . '>Tous les services</a></li>';
 	return $html . '</ul></div>';
 }
 
@@ -272,9 +486,9 @@ function glm_sous_menu_mobile( $key ) {
 			$liens[] = array( 'Catalogue PDF', glm_catalogue_pdf_url() );
 		}
 	} else {
-		$url = glm_page_url( 'services' );
+		$liens[] = array( 'Tous les services', glm_page_url( 'services' ) );
 		foreach ( glm_services() as $slug => $titre ) {
-			$liens[] = array( $titre, $url . '#' . $slug );
+			$liens[] = array( $titre, glm_service_url( $slug ) );
 		}
 	}
 	$html = '<ul class="mobile-sub" id="mobile-sub-' . esc_attr( $key ) . '" hidden>';
@@ -395,15 +609,11 @@ function glm_sizes_carte() {
 /** Carte d'un modèle du catalogue. */
 function glm_modele_card( $post_id, $args = array() ) {
 	$args  = wp_parse_args( $args, array( 'titre' => 'h3', 'eager' => false, 'extrait' => false ) );
-	$badge = '1' === get_post_meta( $post_id, '_glm_sujet_glm', true );
 	$tags  = glm_modele_tags( $post_id );
 	$tag   = in_array( $args['titre'], array( 'h2', 'h3', 'h4' ), true ) ? $args['titre'] : 'h3';
 	?>
 	<a class="card2" href="<?php echo esc_url( get_permalink( $post_id ) ); ?>">
 		<div class="card2__media">
-			<?php if ( $badge ) : ?>
-				<span class="tampon"><?php echo esc_html( glm_t( 'badge_court' ) ); ?></span>
-			<?php endif; ?>
 			<?php
 			if ( has_post_thumbnail( $post_id ) ) {
 				echo glm_image_carte( get_post_thumbnail_id( $post_id ), glm_sizes_carte(), $args['eager'] ); // phpcs:ignore
@@ -651,4 +861,49 @@ add_action( 'pre_get_posts', function ( $query ) {
 	if ( $query->is_post_type_archive( array( 'modele', 'realisation' ) ) || $query->is_tax( 'famille' ) ) {
 		$query->set( 'posts_per_page', -1 );
 	}
+	if ( $query->is_post_type_archive( 'realisation' ) && ! glm_licences_visibles() ) {
+		$query->set( 'meta_query', glm_sans_licence() );
+	}
 } );
+
+/** Les photos avec des personnages sous licence sont-elles affichées ? (Apparence > Personnaliser > Réalisations) */
+function glm_licences_visibles() {
+	return '0' !== (string) get_theme_mod( 'glm_licences', '1' );
+}
+
+/** Condition « sans personnage sous licence » pour les requêtes de réalisations. */
+function glm_sans_licence() {
+	return array(
+		'relation' => 'OR',
+		array( 'key' => '_glm_licence', 'compare' => 'NOT EXISTS' ),
+		array( 'key' => '_glm_licence', 'value' => '1', 'compare' => '!=' ),
+	);
+}
+
+/**
+ * Réalisations à montrer : celles mises en avant d'abord, puis les plus récentes.
+ * $types : identifiants (slug) de types de réalisation, ou vide pour toutes.
+ * $sans_licence : écarte les photos de personnages sous licence (pages Services).
+ */
+function glm_realisations_choisies( $nombre, $types = array(), $sans_licence = false ) {
+	$base = array(
+		'post_type'      => 'realisation',
+		'posts_per_page' => $nombre,
+		'fields'         => 'ids',
+	);
+	if ( $types ) {
+		$base['tax_query'] = array( array( 'taxonomy' => 'type_realisation', 'field' => 'slug', 'terms' => (array) $types ) );
+	}
+	$filtre = ( glm_licences_visibles() && ! $sans_licence ) ? array() : array( glm_sans_licence() );
+	$avant  = get_posts( array_merge( $base, array( 'meta_query' => array_merge( array( 'relation' => 'AND', array( 'key' => '_glm_large', 'value' => '1' ) ), $filtre ) ) ) );
+	$ids    = $avant;
+	if ( count( $ids ) < $nombre ) {
+		$reste = get_posts( array_merge( $base, array(
+			'posts_per_page' => $nombre - count( $ids ),
+			'post__not_in'   => $ids ? $ids : array( 0 ),
+			'meta_query'     => $filtre,
+		) ) );
+		$ids   = array_merge( $ids, $reste );
+	}
+	return $ids;
+}

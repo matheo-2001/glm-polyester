@@ -42,7 +42,7 @@ function glm_modele_specs_box( $post ) {
 		esc_textarea( get_post_meta( $post->ID, '_glm_construction', true ) )
 	);
 	printf(
-		'<tr><th>Étiquette</th><td><label><input type="checkbox" name="_glm_sujet_glm" value="1" %s> Afficher l\'étiquette « Sujet GLM » (sujet fabriqué par GLM)</label></td></tr>',
+		'<tr><th>Fabricant</th><td><label><input type="checkbox" name="_glm_sujet_glm" value="1" %s> Sujet fabriqué par GLM (non affiché sur le site, sert seulement à Google)</label></td></tr>',
 		checked( get_post_meta( $post->ID, '_glm_sujet_glm', true ), '1', false )
 	);
 	printf(
@@ -100,7 +100,12 @@ function glm_realisation_box( $post ) {
 		</tr>
 		<tr>
 			<th><label for="_glm_large">Mise en avant</label></th>
-			<td><label><input type="checkbox" id="_glm_large" name="_glm_large" value="1" <?php checked( get_post_meta( $post->ID, '_glm_large', true ), '1' ); ?>> Afficher en grand format dans la galerie</label></td>
+			<td><label><input type="checkbox" id="_glm_large" name="_glm_large" value="1" <?php checked( get_post_meta( $post->ID, '_glm_large', true ), '1' ); ?>> Montrer en priorité sur la page d'accueil</label></td>
+		</tr>
+		<tr>
+			<th><label for="_glm_licence">Personnage sous licence</label></th>
+			<td><label><input type="checkbox" id="_glm_licence" name="_glm_licence" value="1" <?php checked( get_post_meta( $post->ID, '_glm_licence', true ), '1' ); ?>> La photo montre un personnage connu (Disney, Nintendo, Pat'Patrouille…)</label>
+			<p class="description">Toutes ces photos peuvent être masquées d'un coup : Apparence &gt; Personnaliser &gt; GLM Polyester &gt; Réalisations.</p></td>
 		</tr>
 	</tbody></table>
 	<?php
@@ -145,6 +150,7 @@ add_action( 'save_post', function ( $post_id ) {
 			update_post_meta( $post_id, '_glm_avant', absint( $_POST['_glm_avant'] ) );
 		}
 		update_post_meta( $post_id, '_glm_large', isset( $_POST['_glm_large'] ) ? '1' : '' );
+		update_post_meta( $post_id, '_glm_licence', isset( $_POST['_glm_licence'] ) ? '1' : '' );
 	}
 } );
 
@@ -197,13 +203,13 @@ function glm_famille_champs( $term ) {
 		<p class="description">Utilisée sur l'accueil. Sans photo : celle du dernier modèle ajouté.</p></td>
 	</tr>
 	<tr class="form-field">
-		<th scope="row"><label for="glm_compact">Présentation dans le catalogue</label></th>
+		<th scope="row"><label for="glm_compact">Taille sur la page d'accueil</label></th>
 		<td><select id="glm_compact" name="glm_compact">
 			<option value="" <?php selected( $compact, '' ); ?>>Automatique</option>
-			<option value="0" <?php selected( $compact, '0' ); ?>>Section complète</option>
-			<option value="1" <?php selected( $compact, '1' ); ?>>Regroupée avec les petites familles</option>
+			<option value="0" <?php selected( $compact, '0' ); ?>>Grande tuile</option>
+			<option value="1" <?php selected( $compact, '1' ); ?>>Petite tuile</option>
 		</select>
-		<p class="description">Automatique : les trois premières familles ont leur section, les suivantes sont regroupées.</p></td>
+		<p class="description">Automatique : les trois familles les plus fournies en grand, les autres en petit. Dans le catalogue, toutes les familles ont la même présentation.</p></td>
 	</tr>
 	<?php
 }
